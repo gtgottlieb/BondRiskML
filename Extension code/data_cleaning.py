@@ -41,10 +41,6 @@ def clean_data():
     # Example usage
     # plot_column(240, Yields_aligned)
 
-
-import pandas as pd
-import numpy as np
-
 def compute_excess_returns_for_all_bonds(df,
                                          one_year_col_index=11,
                                          annual_yield_scale=100.0):
