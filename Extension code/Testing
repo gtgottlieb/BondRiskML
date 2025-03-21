@@ -1,0 +1,21 @@
+import pandas as pd
+from computing_excess_returns import compute_excess_returns_for_all_bonds
+
+# Example usage
+# 1) Read yields from an Excel (or CSV) with index_col=0 
+#    so that the date is the row index
+df_in = pd.read_excel("data-folder/Aligned_Yields.xlsx", index_col=0)
+
+# 2) Suppose columns 0..359 => 1..360 months, 
+#    and the 12-month yield is column 11 (by default).
+df_ex = compute_excess_returns_for_all_bonds(df_in)
+
+
+print(df_ex.describe())
+
+# 3) Save to file if desired
+#df_ex.to_excel("data-folder\Excess_Returns.xlsx")
+
+
+
+
