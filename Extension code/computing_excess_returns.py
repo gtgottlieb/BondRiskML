@@ -100,18 +100,3 @@ def compute_excess_returns_for_all_bonds(df,
     return df_excess
 
 
-if __name__ == "__main__":
-    # Example usage
-    # 1) Read yields from an Excel (or CSV) with index_col=0 
-    #    so that the date is the row index
-    df_in = pd.read_excel("Aligned_Yields.xlsx", index_col=0)
-    
-    # 2) Suppose columns 0..359 => 1..360 months, 
-    #    and the 12-month yield is column 11 (by default).
-    df_ex = compute_excess_returns_for_all_bonds(df_in)
-
-    print("Head of computed excess returns:")
-    print(df_ex.head())
-
-    # 3) Save to file if desired
-    df_ex.to_excel("Excess_Returns.xlsx")
