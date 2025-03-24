@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def clean_data(yield_data_path, macro_data_path, yield_date_col, macro_date_col):
+def clean_data(yield_data_path, macro_data_path, yield_date_col, macro_date_col, yield_save_name, macro_save_name):
     """
     Cleans and aligns yield and macroeconomic data based on their date ranges.
 
@@ -15,6 +15,10 @@ def clean_data(yield_data_path, macro_data_path, yield_date_col, macro_date_col)
         Column name for the date in the yield data.
     macro_date_col : str
         Column name for the date in the macroeconomic data.
+    yield_save_name : str
+        File name to save the aligned yield data.
+    macro_save_name : str
+        File name to save the aligned macroeconomic data.
 
     Returns
     -------
@@ -38,7 +42,7 @@ def clean_data(yield_data_path, macro_data_path, yield_date_col, macro_date_col)
     MacroData_aligned = MacroData[(MacroData[macro_date_col] >= start_date) & (MacroData[macro_date_col] <= end_date)]
 
     # Save the aligned datasets to separate Excel files
-    Yields_aligned.to_excel("data-folder\Aligned_Yields.xlsx", index=False)
-    MacroData_aligned.to_excel("data-folder\Aligned_VintageMacroData.xlsx", index=False)
+    Yields_aligned.to_excel(f"data-folder\\{yield_save_name}", index=False)
+    MacroData_aligned.to_excel(f"data-folder\\{macro_save_name}", index=False)
 
-    print("Aligned datasets have been saved as 'Aligned_Yields.xlsx' and 'Aligned_VintageMacroData.xlsx'.")
+    print(f"Aligned datasets have been saved as '{yield_save_name}' and '{macro_save_name}'.")

@@ -1,6 +1,7 @@
 import os
 import zipfile
 import pandas as pd
+from data_cleaning import clean_data
 
 # Define the folder containing the zip files
 vintages_folder = r"c:\Users\Jan\OneDrive - Erasmus University Rotterdam\Desktop\BondRiskML\Vintages"
@@ -39,4 +40,5 @@ for zip_filename in os.listdir(vintages_folder):
 if last_rows:
     result_df = pd.DataFrame(last_rows)
     # Save the result to a new .csv file
-    result_df.to_csv(output_file, index=False)
+    #result_df.to_csv(output_file, index=False)
+
