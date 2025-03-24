@@ -1,44 +1,43 @@
 import pandas as pd
 
 
-def clean_data(yield_data_path, macro_data_path, yield_date_col, macro_date_col):
+def align_data(yield_df, macro_df, yield_save_name, macro_save_name, yield_date_col='Date', macro_date_col='sasdate'):
     """
     Cleans and aligns yield and macroeconomic data based on their date ranges.
 
     Parameters
     ----------
-    yield_data_path : str
-        File path to the yield data Excel file.
-    macro_data_path : str
-        File path to the macroeconomic data CSV file.
+    yield_df : pd.DataFrame
+        DataFrame containing the yield data.
+    macro_df : pd.DataFrame
+        DataFrame containing the macroeconomic data.
     yield_date_col : str
         Column name for the date in the yield data.
     macro_date_col : str
         Column name for the date in the macroeconomic data.
+    yield_save_name : str
+        File name to save the aligned yield data.
+    macro_save_name : str
+        File name to save the aligned macroeconomic data.
 
     Returns
     -------
     None
         Saves the aligned datasets to separate Excel files.
     """
-    # Read the input files
-    Yields = pd.read_excel(yield_data_path, skiprows=8)
-    MacroData = pd.read_csv(macro_data_path, skiprows=0)
-    MacroData = MacroData.drop(0)
-
     # Convert the Date columns to datetime format
-    Yields[yield_date_col] = pd.to_datetime(Yields[yield_date_col].astype(str), format="%Y%m")
-    MacroData[macro_date_col] = pd.to_datetime(MacroData[macro_date_col])
+    yield_df[yield_date_col] = pd.to_datetime(yield_df[yield_date_col].astype(str), format="%Y%m")
+    macro_df[macro_date_col] = pd.to_datetime(macro_df[macro_date_col])
 
     # Align the datasets based on the date range
-    start_date = max(Yields[yield_date_col].min(), MacroData[macro_date_col].min())
-    end_date = min(Yields[yield_date_col].max(), MacroData[macro_date_col].max())
+    start_date = max(yield_df[yield_date_col].min(), macro_df[macro_date_col].min())
+    end_date = min(yield_df[yield_date_col].max(), macro_df[macro_date_col].max())
 
-    Yields_aligned = Yields[(Yields[yield_date_col] >= start_date) & (Yields[yield_date_col] <= end_date)]
-    MacroData_aligned = MacroData[(MacroData[macro_date_col] >= start_date) & (MacroData[macro_date_col] <= end_date)]
+    yield_aligned = yield_df[(yield_df[yield_date_col] >= start_date) & (yield_df[yield_date_col] <= end_date)]
+    macro_aligned = macro_df[(macro_df[macro_date_col] >= start_date) & (macro_df[macro_date_col] <= end_date)]
 
     # Save the aligned datasets to separate Excel files
-    Yields_aligned.to_excel("data-folder\Aligned_Yields.xlsx", index=False)
-    MacroData_aligned.to_excel("data-folder\Aligned_VintageMacroData.xlsx", index=False)
+    yield_aligned.to_excel(f"data-folder\\{yield_save_name}", index=False)
+    macro_aligned.to_excel(f"data-folder\\{macro_save_name}", index=False)
 
-    print("Aligned datasets have been saved as 'Aligned_Yields.xlsx' and 'Aligned_VintageMacroData.xlsx'.")
+    print(f"Aligned datasets have been saved as '{yield_save_name}' and '{macro_save_name}'.")
