@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-yields_data = pd.read_excel("data-folder/Aligned_Yields.xlsx", index_col=0, parse_dates=True)
-
 def plot_yield_curve_for_maturity(yields_data, maturity):
     """
     Plots the yield curve for a specified maturity.
