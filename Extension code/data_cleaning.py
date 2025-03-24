@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def clean_data(yield_df, macro_df, yield_save_name, macro_save_name, yield_date_col='Date', macro_date_col='sasdate'):
+def align_data(yield_df, macro_df, yield_save_name, macro_save_name, yield_date_col='Date', macro_date_col='sasdate'):
     """
     Cleans and aligns yield and macroeconomic data based on their date ranges.
 
