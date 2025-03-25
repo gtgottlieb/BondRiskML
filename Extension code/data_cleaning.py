@@ -41,3 +41,61 @@ def align_data(yield_df, macro_df, yield_save_name, macro_save_name, yield_date_
     macro_aligned.to_excel(f"data-folder\\{macro_save_name}", index=False)
 
     print(f"Aligned datasets have been saved as '{yield_save_name}' and '{macro_save_name}'.")
+
+
+def extract_and_save_data(dataframes, columns_to_extract, output_folder="data-folder", file_names=None):
+    """
+    Extracts specified columns and rows from a list of dataframes and saves them to Excel files.
+
+    Parameters
+    ----------
+    dataframes : list of pd.DataFrame
+        List of dataframes to process.
+    columns_to_extract : list of str
+        List of column names to extract from each dataframe.
+    start_date : str
+        The starting date (inclusive) for row extraction in 'YYYY-MM-DD' format.
+    output_folder : str, optional
+        Folder where the extracted dataframes will be saved. Default is "data-folder".
+    file_names : list of str, optional
+        List of file names for saving the extracted dataframes. If None, default names will be used.
+
+    Returns
+    -------
+    None
+        Saves the extracted dataframes to Excel files in the specified folder.
+    """
+    # Extract the specified columns from the dataframes
+    extracted_dataframes = []
+    for df in dataframes:
+        extracted_dataframes.append(df[columns_to_extract])
+    
+
+    # Set default file names if not provided
+    if file_names is None:
+        file_names = [f"Extracted_Data_{i+1}.xlsx" for i in range(len(dataframes))]
+
+    # Save all extracted dataframes to Excel files in the output folder
+    for df, file_name in zip(extracted_dataframes, file_names):
+        df.to_excel(f"{output_folder}/{file_name}", index=False)
+
+    print("Extracted dataframes have been saved to the specified folder.")
+
+
+if __name__ == "__main__":
+    # Load excel files
+    Excess_returns_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Excess_Returns.xlsx")
+    Forward_rates_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Forward_Rates.xlsx")
+
+    # Standardize column names by stripping leading/trailing spaces
+    Excess_returns_df.columns = Excess_returns_df.columns.str.strip()
+    Forward_rates_df.columns = Forward_rates_df.columns.str.strip()
+
+    
+    # Put all the excel files in a list
+    dataframes = [Excess_returns_df, Forward_rates_df]
+    # Extract the columns from the dataframes for specific maturities
+    columns_to_extract = [f"{i} m" for i in [24, 36, 48, 60, 84, 120]]
+    # Extract and save the data
+    extract_and_save_data(dataframes, columns_to_extract)
+
