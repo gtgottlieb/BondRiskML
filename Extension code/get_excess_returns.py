@@ -24,13 +24,13 @@ def compute_excess_returns_lw(filepath, output_path, max_maturity_months=120):
     df.dropna(axis=1, how='all', inplace=True)
 
     # Rename date column
-    df.rename(columns={df.columns[0]: 'date'}, inplace=True)
+    df.rename(columns={df.columns[0]: 'Date'}, inplace=True)
 
     # Remove any rows where the 'date' column isn't a valid date
-    df = df[df['date'].apply(lambda x: str(x).isdigit())].copy()
+    df = df[df['Date'].apply(lambda x: str(x).isdigit())].copy()
 
     # Convert 'date' from YYYYMM to datetime
-    df['date'] = pd.to_datetime(df['date'].astype(int).astype(str), format='%Y%m')
+    df['Date'] = pd.to_datetime(df['Date'].astype(int).astype(str), format='%Y%m')
 
     # Select only columns for maturities 1m to 120m
     maturity_columns = df.columns[1:max_maturity_months+1]  # '1m' is second column
@@ -52,10 +52,10 @@ def compute_excess_returns_lw(filepath, output_path, max_maturity_months=120):
         excess_returns[12:, n - 1] = p_future - p_now - y_12
 
     # Create output DataFrame
-    xr_columns = [f"{n}m" for n in range(1, max_maturity_months + 1)]
+    xr_columns = [f"{n} m" for n in range(1, max_maturity_months + 1)]
     df_excess = pd.DataFrame(excess_returns, columns=xr_columns)
-    df_excess['date'] = df['date'].values
-    df_excess = df_excess[['date'] + xr_columns]  # reorder columns
+    df_excess['Date'] = df['Date'].values
+    df_excess = df_excess[['Date'] + xr_columns]  # reorder columns
 
     # Save to Excel
     df_excess.to_excel(output_path, index=False)
@@ -72,13 +72,13 @@ def extract_data(filepath, output_path):
 
     # Load the data, ignoring the rows before the date 1971-08-01
     df = pd.read_excel(filepath)
-    df = df[df['date'] >= '1971-08-01']
+    df = df[df['Date'] >= '1971-08-01']
 
     # Extract the columns with excess returns
-    indices = ["24m", "36m", "48m", "60m", "84m", "120m"]
+    indices = ["24 m", "36 m", "48 m", "60 m", "84 m", "120 m"]
 
     # Create a new DataFrame with the extracted columns
-    df_extracted = df[['date'] + indices].copy()
+    df_extracted = df[['Date'] + indices].copy()
 
     # Save to Excel
     df_extracted.to_excel(output_path, index=False)
