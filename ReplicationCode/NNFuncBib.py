@@ -360,18 +360,23 @@ def ElasticNet_Exog_Plain(X,Xexog,Y):
     from sklearn.model_selection import PredefinedSplit
 
     # Split data into training and test
-    X_train = X[:-1,:]
+    if X.shape[1] > 0:
+        X_train = X[:-1, :]
+        X_test = X[-1, :].reshape(1, -1)
+        Xscaler_train = StandardScaler()
+        X_train = Xscaler_train.fit_transform(X_train)
+        X_test = Xscaler_train.transform(X_test)
+    else:
+        X_train = np.empty((Xexog.shape[0] - 1, 0))
+        X_test = np.empty((1, 0))
+
     Xexog_train = Xexog[:-1,:]
     Y_train = Y[:-1,:]
-    X_test = X[-1,:]
-    X_test = X_test.reshape(1, -1)
     Xexog_test = Xexog[-1,:]
     Xexog_test = Xexog_test.reshape(1, -1)
 
     # Scale Inputs for Training
     Xscaler_train = StandardScaler()
-    X_train = Xscaler_train.fit_transform(X_train)
-    X_test = Xscaler_train.transform(X_test)
 
     Xexogscaler_train = StandardScaler()
     Xexog_train = Xexogscaler_train.fit_transform(Xexog_train)
