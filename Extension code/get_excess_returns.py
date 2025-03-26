@@ -72,7 +72,7 @@ def extract_data(filepath, output_path):
 
     # Load the data, ignoring the rows before the date 1971-08-01
     df = pd.read_excel(filepath)
-    df = df[df['Date'] >= '1971-08-01']
+    df = df[(df['Date'] >= '1971-08-01') & (df['Date'] < '2024-12-01')]
 
     # Extract the columns with excess returns
     indices = ["24 m", "36 m", "48 m", "60 m", "84 m", "120 m"]
