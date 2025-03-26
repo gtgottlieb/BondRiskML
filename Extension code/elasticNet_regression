@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+elastic_net_single_fwdRate_lag.py
+
+Rewrite of the original script so that:
+  - We use ONLY the 10-year (120 m) forward rate as the predictor (X).
+  - We shift the 10-year excess return by -1 step to align it with the
+    same date's forward rate. Hence Y[t] = ExcessReturn_{t+1}, 
+    X[t] = ForwardRate_{t}.
+
+Steps:
+1) Read 'Excess_Returns.xlsx' and 'Forward_Rates.xlsx', each with a 'Date' column.
+2) Merge them on date (inner join).
+3) From Forward_Rates, select the 10-year column (e.g. "120 m") as X.
+4) From Excess_Returns, select the 10-year column (e.g. "120 m") as Y, 
+   then SHIFT Y by -1 so that row t matches row t's forward rate and row t+1's return.
+5) Drop any rows that are now missing data (especially the last row, 
+   because Y[t+1] won't exist for the final row).
+6) Feed into the single-step ElasticNet, which performs an 85%-15% train-validation 
+   on the training portion, then forecasts the final row.
+
+Usage:
+  python elastic_net_single_fwdRate_lag.py
+"""
+
+import numpy as np
+import pandas as pd
+import os
+
+def ElasticNet_Exog_Plain(X, Xexog, Y):
+    """
+    Single-step forecast using an ElasticNetCV, with an internal 85%-15%
+    train-validation split. The final row in X is "test".
+
+    Parameters
+    ----------
+    X : array-like, shape (T, Nx)
+        The main regressors
+    Xexog : array-like, shape (T, Nx_exog) (unused here, so empty)
+    Y : array-like, shape (T, Ny)
+        The target columns
+
+    Returns
+    -------
+    Ypred : shape (1, Ny)
+        The forecast for the final row
+    """
+    from sklearn.linear_model import ElasticNetCV
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import PredefinedSplit
+
+    # 1) Partition data: all but last row => train, last row => test
+    X_train = X[:-1, :]
+    Y_train = Y[:-1, :]
+    X_test  = X[-1, :].reshape(1, -1)
+
+    # 2) For Xexog
+    if Xexog.shape[1] > 0:
+        Xexog_train = Xexog[:-1, :]
+        Xexog_test  = Xexog[-1, :].reshape(1, -1)
+    else:
+        Xexog_train = np.empty((len(X_train), 0))
+        Xexog_test  = np.empty((1, 0))
+
+    # 3) Scale X
+    scaler_X = StandardScaler()
+    X_train_scaled = scaler_X.fit_transform(X_train)
+    X_test_scaled  = scaler_X.transform(X_test)
+
+    # 4) Scale Xexog if present
+    if Xexog_train.shape[1] > 0:
+        scaler_exog = StandardScaler()
+        Xexog_train_scaled = scaler_exog.fit_transform(Xexog_train)
+        Xexog_test_scaled  = scaler_exog.transform(Xexog_test)
+    else:
+        Xexog_train_scaled = Xexog_train
+        Xexog_test_scaled  = Xexog_test
+
+    # 5) Predefined 85%-15% train-validation split (on the training portion)
+    n_obs_train = X_train_scaled.shape[0]
+    n_train_main = int(round(n_obs_train * 0.85))
+    n_val = n_obs_train - n_train_main
+    test_fold = np.concatenate([
+        np.full(n_train_main, -1),
+        np.full(n_val, 0)
+    ])
+    ps = PredefinedSplit(test_fold.tolist())
+
+    # 6) Fit an ElasticNetCV for each target column
+    from sklearn.linear_model import ElasticNetCV
+    Ypred = np.full((1, Y_train.shape[1]), np.nan)
+    for i in range(Y_train.shape[1]):
+        model = ElasticNetCV(
+            cv=ps,
+            max_iter=5000,
+            n_jobs=-1,
+            l1_ratio=[0.1, 0.3, 0.5, 0.7, 0.9],
+            random_state=42
+        )
+        # Combine X & Xexog horizontally
+        train_concat = np.hstack([X_train_scaled, Xexog_train_scaled])
+        model.fit(train_concat, Y_train[:, i])
+
+        test_concat = np.hstack([X_test_scaled, Xexog_test_scaled])
+        Ypred[0, i] = model.predict(test_concat)
+
+    return Ypred
+
+
+if __name__ == "__main__":
+
+    # -------------------------------------------------------------------
+    # 1. Load data from Excel, merge on 'Date'
+    # -------------------------------------------------------------------
+    exr_path = os.path.join("Excess_Returns.xlsx")
+    fwd_path = os.path.join("Forward_Rates.xlsx")
+
+    df_exr = pd.read_excel(exr_path)  # must contain e.g. "120 m" for the 10y excess returns
+    df_fwd = pd.read_excel(fwd_path)  # must contain e.g. "120 m" for the 10y forward rate
+
+    # If each has a 'Date' column, set it as index
+    if 'Date' in df_exr.columns:
+        df_exr.set_index('Date', inplace=True)
+    if 'Date' in df_fwd.columns:
+        df_fwd.set_index('Date', inplace=True)
+
+    # Merge on date index (inner join => keep only dates present in both)
+    df_merged = pd.merge(df_exr, df_fwd, left_index=True, right_index=True, how='inner')
+
+    # Suppose in the merges, the 10-year excess return is called "120 m_x"
+    # and the 10-year forward rate is called "120 m_y" or something similar.
+    # Let's rename them more clearly for code below:
+    # (Adjust to match your actual column names.)
+    df_merged.rename(columns={
+        "120 m_x": "exr120",
+        "120 m_y": "fwd120"
+    }, inplace=True)
+
+    # Or if they literally appear as "120 m" in each:
+    #   df_merged.rename(columns={"120 m_x":"exr120","120 m_y":"fwd120"}, inplace=True)
+
+    # -------------------------------------------------------------------
+    # 2. Shift the EXCESS RETURN by -1 so Y[t] is actually exr[t+1]
+    # -------------------------------------------------------------------
+    df_merged["exr120_shifted"] = df_merged["exr120"].shift(-1)
+
+    # That means row t now lines up with forward rate at time t and return at t+1.
+
+    # -------------------------------------------------------------------
+    # 3. Drop rows with missing data in these relevant columns
+    # -------------------------------------------------------------------
+    df_merged = df_merged.dropna(subset=["fwd120", "exr120_shifted"]).copy()
+
+    # If there's no data left after dropping, we must raise an error:
+    if df_merged.empty:
+        raise ValueError("No valid rows after merging and shifting. Check your columns/overlaps.")
+
+    # -------------------------------------------------------------------
+    # 4. Build X from the 10-year forward rate (time t)
+    #    and Y from the SHIFTED 10-year excess returns (time t+1)
+    # -------------------------------------------------------------------
+    # X => shape (T,1)
+    X = df_merged[["fwd120"]].values
+
+    # Y => shape (T,1)
+    Y = df_merged[["exr120_shifted"]].values
+
+    # No exogenous dataset
+    Xexog = np.empty((len(df_merged), 0))
+
+    # -------------------------------------------------------------------
+    # 5. Single-step forecast on the final row
+    # -------------------------------------------------------------------
+    y_pred_last = ElasticNet_Exog_Plain(X, Xexog, Y)
+
+    # Compare to the actual final data point
+    actual_last = Y[-1, 0]
+
+    print("========================================================")
+    print("ELASTIC NET FORECAST FOR 10Y EXRET(t+1) USING FWD(t)")
+    print("--------------------------------------------------------")
+    print(f"Predicted final row: {y_pred_last[0, 0]:.6f}")
+    print(f"Actual final row:    {actual_last:.6f}")
+    print(f"Forecast Error:      {actual_last - y_pred_last[0,0]:.6f}")
+    print("========================================================")
