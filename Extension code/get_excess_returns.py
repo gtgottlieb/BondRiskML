@@ -45,8 +45,9 @@ def compute_excess_returns_lw(filepath, output_path, max_maturity_months=120):
     excess_returns = np.full((T, max_maturity_months), np.nan)
 
     # Compute: xr_t^{(n)} = p_{t+12}^{(n-12)} - p_t^{(n)} - y_t^{(12)}
-    for n in range(12, max_maturity_months + 1):
-        p_future = prices[12:, n - 12]     # p_{t+12}^{(n-12)}
+    # Subtract 1 to convert from 1-based to 0-based indexing
+    for n in range(13, max_maturity_months + 1):
+        p_future = prices[12:, n - 12 - 1]     # p_{t+12}^{(n-12)}
         p_now = prices[:-12, n - 1]        # p_t^{(n)}
         y_12 = yields[:-12, 11]            # y_t^{(12)}
         excess_returns[12:, n - 1] = p_future - p_now - y_12

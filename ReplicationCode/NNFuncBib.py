@@ -359,7 +359,7 @@ def ElasticNet_Exog_Plain(X,Xexog,Y):
     from sklearn.preprocessing import StandardScaler
     from sklearn.model_selection import PredefinedSplit
 
-    # Split data into training and test
+    # First check if any macro data is
     if X.shape[1] > 0:
         X_train = X[:-1, :]
         X_test = X[-1, :].reshape(1, -1)
@@ -374,9 +374,6 @@ def ElasticNet_Exog_Plain(X,Xexog,Y):
     Y_train = Y[:-1,:]
     Xexog_test = Xexog[-1,:]
     Xexog_test = Xexog_test.reshape(1, -1)
-
-    # Scale Inputs for Training
-    Xscaler_train = StandardScaler()
 
     Xexogscaler_train = StandardScaler()
     Xexog_train = Xexogscaler_train.fit_transform(Xexog_train)
@@ -400,6 +397,40 @@ def ElasticNet_Exog_Plain(X,Xexog,Y):
         model = model.fit(np.concatenate((X_train,Xexog_train),axis=1),
                           Y_train[:,i])
         Ypred[0,i]=model.predict(np.concatenate((X_test,Xexog_test),axis=1))
+
+    return Ypred
+
+def ElasticNet_NoMacro_Plain(Xexog, Y):
+    from sklearn.linear_model import ElasticNetCV
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.model_selection import PredefinedSplit
+
+    Xexog_train = Xexog[:-1,:]
+    Y_train = Y[:-1,:]
+    Xexog_test = Xexog[-1,:]
+    Xexog_test = Xexog_test.reshape(1, -1)
+
+    Xexogscaler_train = StandardScaler()
+    Xexog_train = Xexogscaler_train.fit_transform(Xexog_train)
+    Xexog_test = Xexogscaler_train.transform(Xexog_test)
+
+
+    # Construct Validation sample as last 15% of sample
+    N_train = int(np.round(np.size(Xexog_train,axis=0)*0.85))
+    N_val = np.size(Xexog_train,axis=0)-N_train
+    test_fold =  np.concatenate(((np.full((N_train),-1),np.full((N_val),0))))
+    ps = PredefinedSplit(test_fold.tolist())
+
+    # Regress & Predict
+    Ypred = np.full([1, Y_train.shape[1]],np.nan)
+    # Loop over maturities
+    for i in range(Y_train.shape[1]):
+
+        model = ElasticNetCV(cv=ps, max_iter=5000, n_jobs=-1,
+                             l1_ratio=1,
+                             random_state=42)
+        model = model.fit(Xexog_train, Y_train[:,i])
+        Ypred[0,i]=model.predict(Xexog_test)
 
     return Ypred
 
