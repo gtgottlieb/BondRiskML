@@ -1,0 +1,86 @@
+USING NNFuncBib.py and run_elasticnet.py
+=============================================
+Lasso (elastic net w/ l1_ratio = 1):
+======
+24 m: -0.1541
+36 m: -0.0950
+48 m: -0.0831
+60 m: -0.0969
+84 m: -0.1218
+120 m: -0.0740
+
+
+Ridge (elastic net w/ l1_ratio ~= 0):
+======
+24 m: -0.1619
+36 m: -0.1219
+48 m: -0.0933
+60 m: -0.1136
+84 m: -0.1329
+120 m: -0.1212
+
+
+Optimal elastic net:
+======
+24 m: -0.1541
+36 m: -0.0950
+48 m: -0.0831
+60 m: -0.0969
+84 m: -0.1218
+120 m: -0.0740
+
+
+Using elasticNet_regression.py
+==============================
+
+Lasso:
+Elastic Net Results (OOS R²):
+
+
+Diagnostics for 24m:
+→ Std. dev of actual returns:     0.0125
+→ Std. dev of predicted returns:  0.0036
+→ Model MSE:                      0.060620
+→ Benchmark MSE:                  0.052810
+→ Avg. non-zero coefficients:     1.39
+24m: -0.1479
+
+Diagnostics for 36m:
+→ Std. dev of actual returns:     0.0237
+→ Std. dev of predicted returns:  0.0081
+→ Model MSE:                      0.206355
+→ Benchmark MSE:                  0.190382
+→ Avg. non-zero coefficients:     1.71
+36m: -0.0839
+
+Diagnostics for 48m:
+→ Std. dev of actual returns:     0.0332
+→ Std. dev of predicted returns:  0.0123
+→ Model MSE:                      0.391162
+→ Benchmark MSE:                  0.373999
+→ Avg. non-zero coefficients:     1.90
+48m: -0.0459
+
+Diagnostics for 60m:
+→ Std. dev of actual returns:     0.0415
+→ Std. dev of predicted returns:  0.0159
+→ Model MSE:                      0.620929
+→ Benchmark MSE:                  0.584390
+→ Avg. non-zero coefficients:     2.10
+60m: -0.0625
+
+Diagnostics for 84m:
+→ Std. dev of actual returns:     0.0564
+→ Std. dev of predicted returns:  0.0227
+→ Model MSE:                      1.153013
+→ Benchmark MSE:                  1.079766
+→ Avg. non-zero coefficients:     2.21
+84m: -0.0678
+
+Diagnostics for 120m:
+→ Std. dev of actual returns:     0.0758
+→ Std. dev of predicted returns:  0.0324
+→ Model MSE:                      1.939437
+→ Benchmark MSE:                  1.946468
+→ Avg. non-zero coefficients:     2.56
+120m: 0.0036

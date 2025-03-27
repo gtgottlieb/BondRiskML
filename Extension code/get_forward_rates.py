@@ -34,6 +34,29 @@ def get_forward_rates(yield_df, yield_date_col='Date'):
 
     return forward_rates
 
+def extract_data(filepath, output_path):
+    """
+    Extract data from the Excel file with excess returns.
+
+    Parameters:
+    - filepath: path to the Excel file with excess returns
+    - output_path: where to save the resulting Excel file
+    """
+
+    # Load the data, ignoring the rows before the date 1971-08-01
+    df = pd.read_excel(filepath)
+
+    df.columns = [c.strip() for c in df.columns]
+
+    # Extract the columns with excess returns
+    indices = ["24 m", "36 m", "48 m", "60 m", "84 m", "120 m"]
+
+    # Create a new DataFrame with the extracted columns
+    df_extracted = df[['Date'] + indices].copy()
+
+    # Save to Excel
+    df_extracted.to_excel(output_path, index=False)
+    print(f"Extracted data saved to: {output_path}")
 
 if __name__ == "__main__":
     # Read the Excel file
@@ -44,3 +67,5 @@ if __name__ == "__main__":
     forward_rates.to_excel("data-folder/Cleaned data/Yields+Final/Forward_Rates.xlsx", index=False)
     print("Forward rates have been saved as 'Forward_Rates.xlsx'.")
 
+    # Extract necessary columns
+    extract_data("data-folder/Cleaned data/Yields+Final/Forward_Rates.xlsx", "data-folder/Extracted_fwd_rates.xlsx")
