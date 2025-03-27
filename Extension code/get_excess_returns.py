@@ -2,98 +2,95 @@ import pandas as pd
 import numpy as np
 import os
 
-def calculate_excess_returns(df_yields):
+
+"""
+This script uses the original LW_monthly data to compute excess returns for 12-month holding periods.
+Not: Since data from before 1971-08-01 is not available for the 120m maturity, 
+excess returns for the 120m maturity are only available from 1972-08-01 onwards.
+"""
+def compute_excess_returns_lw(filepath, output_path, max_maturity_months=120):
     """
-    Compute log excess returns from a DataFrame of annualized yields.
-    
-    Parameters
-    ----------
-    df_yields : pd.DataFrame
-        DataFrame of shape (T x M) with columns for each bond maturity in months.
-        Example columns: '1 m', '2 m', ..., '120 m'.
-        Each entry is the annualized yield (decimal, e.g. 0.05 for 5%) at time t.
-        The DataFrame index is time (monthly or otherwise).
-    
-    Returns
-    -------
-    df_excess : pd.DataFrame
-        DataFrame of the same shape as df_yields (minus edge effects),
-        containing log excess returns. Rows aligned with df_yields.index,
-        columns aligned with the same maturities, but note that for the very
-        last row or last maturity, returns will be NaN where calculation is not
-        feasible (e.g., n=1 cannot form n-1=0-month bond).
+    Compute CP-style 12-month excess returns from Liu & Wu zero-coupon yields.
+
+    Parameters:
+    - filepath: path to the Excel file with LW yield data
+    - output_path: where to save the resulting Excel file
+    - max_maturity_months: maximum bond maturity in months to include
     """
-    
-    # 1) Convert yields to log prices p_t^(n) = -(n/12)* y_t^(n)
-    #    We'll parse out the integer from the column name (e.g. "15 m" -> 15).
-    maturities = []
-    for col in df_yields.columns:
-        # Extract the number of months from column label
-        # e.g. '10 m' -> 10
-        months_str = col.split()[0]  # everything before the space
-        months = int(months_str)
-        maturities.append(months)
-    # Sort the columns by their numeric maturity so we can shift columns easily
-    sorted_cols = [c for _, c in sorted(zip(maturities, df_yields.columns), key=lambda x: int(x[0]))]
-    df_sorted = df_yields[sorted_cols].copy()
-    numeric_maturities = sorted(maturities)
 
-    # Convert yields to log prices
-    # p^(n)_t = - (n/12) * y^(n)_t
-    df_prices = df_sorted.mul(-1)
-    for i, col in enumerate(df_sorted.columns):
-        n = numeric_maturities[i]  # months
-        df_prices[col] = df_prices[col] * (n / 12.0)
+    # Load the data, skipping metadata rows
+    df = pd.read_excel(filepath, skiprows=5)
+    df.dropna(axis=0, how='all', inplace=True)
+    df.dropna(axis=1, how='all', inplace=True)
 
-    # 2) For each n, the log return from t to t+1 is p_{t+1}^{(n-1)} - p_t^{(n)}.
-    #    We'll shift the "price" DataFrame by -1 row (time) AND also shift columns
-    #    so that for each n we find p_{t+1}(n-1).
-    df_prices_tplus1 = df_prices.shift(-1)  # shift time up by 1
-    # We'll also shift columns to align p_{t+1}^{(n-1)} in the same column as p_t^{(n)}:
-    # method: create a 2D array with the same shape, fill with NaNs, then place the shifted columns in
-    arr_prices_shifted = np.full_like(df_prices_tplus1.values, np.nan, dtype=float)
+    # Rename date column
+    df.rename(columns={df.columns[0]: 'Date'}, inplace=True)
 
-    # For column i (maturity n), we want to read column (i-1) from df_prices_tplus1, because that's n-1.
-    for i in range(len(numeric_maturities)):
-        n = numeric_maturities[i]
-        if n == 1:
-            # n=1 means no n-1=0 column, can't compute a next price for a 0-month bond
-            continue
-        else:
-            arr_prices_shifted[:, i] = df_prices_tplus1.iloc[:, i-1]
+    # Remove any rows where the 'date' column isn't a valid date
+    df = df[df['Date'].apply(lambda x: str(x).isdigit())].copy()
 
-    df_prices_nminus1_tplus1 = pd.DataFrame(arr_prices_shifted,
-                                            index=df_prices.index,
-                                            columns=df_prices.columns)
+    # Convert 'date' from YYYYMM to datetime
+    df['Date'] = pd.to_datetime(df['Date'].astype(int).astype(str), format='%Y%m')
 
-    # log returns: r_t+1^(n) = p_{t+1}(n-1) - p_t(n)
-    df_log_returns = df_prices_nminus1_tplus1.sub(df_prices)
+    # Select only columns for maturities 1m to 120m
+    maturity_columns = df.columns[1:max_maturity_months+1]  # '1m' is second column
+    yields = df[maturity_columns].values / 100.0  # Convert percentage to decimal
+    maturities = np.arange(1, max_maturity_months + 1)  # in months
 
-    # 3) Subtract the short rate to get excess returns:
-    # short rate at time t is y_t^(1) / 12 in log approximation
-    # We'll retrieve that from df_sorted['1 m'], if it exists
-    if '1 m' not in df_sorted.columns:
-        raise KeyError("We assume the short rate is the '1 m' column, but not found.")
-    # annualized short rate => monthly log is y_(1)/12
-    # We'll broadcast-subtract from each column
-    df_excess = df_log_returns.sub(df_sorted['1 m'] / 12.0, axis=0)
+    # Compute log bond prices: p_t^{(n)} = - (n/12) * y_t^{(n)}
+    prices = -yields * (maturities / 12.0)
 
-    # For n=1, no valid return because it becomes 0-month next period, so set them to NaN
-    df_excess['1 m'] = np.nan
+    # Initialize excess return array
+    T = yields.shape[0]
+    excess_returns = np.full((T, max_maturity_months), np.nan)
 
-    # The final row is also NaN because shifting -1 goes out of range
-    # That is already handled from the shift above.
+    # Compute: xr_t^{(n)} = p_{t+12}^{(n-12)} - p_t^{(n)} - y_t^{(12)}
+    # Subtract 1 to convert from 1-based to 0-based indexing
+    for n in range(13, max_maturity_months + 1):
+        p_future = prices[12:, n - 12 - 1]     # p_{t+12}^{(n-12)}
+        p_now = prices[:-12, n - 1]        # p_t^{(n)}
+        y_12 = yields[:-12, 11]            # y_t^{(12)}
+        excess_returns[12:, n - 1] = p_future - p_now - y_12
 
-    return df_excess
+    # Create output DataFrame
+    xr_columns = [f"{n} m" for n in range(1, max_maturity_months + 1)]
+    df_excess = pd.DataFrame(excess_returns, columns=xr_columns)
+    df_excess['Date'] = df['Date'].values
+    df_excess = df_excess[['Date'] + xr_columns]  # reorder columns
+
+    # Save to Excel
+    df_excess.to_excel(output_path, index=False)
+    print(f"Excess returns saved to: {output_path}")
+
+def extract_data(filepath, output_path):
+    """
+    Extract data from the Excel file with excess returns.
+
+    Parameters:
+    - filepath: path to the Excel file with excess returns
+    - output_path: where to save the resulting Excel file
+    """
+
+    # Load the data, ignoring the rows before the date 1971-08-01
+    df = pd.read_excel(filepath)
+    df = df[(df['Date'] >= '1971-08-01') & (df['Date'] < '2024-12-01')]
+
+    # Extract the columns with excess returns
+    indices = ["24 m", "36 m", "48 m", "60 m", "84 m", "120 m"]
+
+    # Create a new DataFrame with the extracted columns
+    df_extracted = df[['Date'] + indices].copy()
+
+    # Save to Excel
+    df_extracted.to_excel(output_path, index=False)
+    print(f"Extracted data saved to: {output_path}")
 
 if __name__ == "__main__":
-    input_path = os.path.join("data-folder", "Cleaned data", "Yields+Final", "Aligned_Yields.xlsx")
+    # Example usage
+    input_path = os.path.join("data-folder", "Raw data", "LW_monthly.xlsx")
     output_path = os.path.join("data-folder", "Cleaned data", "Yields+Final", "Excess_Returns.xlsx")
 
-    df_in = pd.read_excel(input_path, index_col=0)
+    extracted_path = os.path.join("data-folder", "Extracted_excess_returns.xlsx")
 
-    # clean up column names:
-    df_in.columns = [c.strip() for c in df_in.columns]
-
-    df_excess = calculate_excess_returns(df_in)
-    df_excess.to_excel(output_path)
+    compute_excess_returns_lw(input_path, output_path)
+    extract_data(output_path, extracted_path)
