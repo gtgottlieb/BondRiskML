@@ -25,8 +25,6 @@ def prepare_data(xr_path, fwd_path):
     df = pd.merge(df_xr, df_fwd, on="date", suffixes=("_xr", "_fwd"))
     df.set_index("date", inplace=True)
 
-    
-
     return df
 
 def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
@@ -56,7 +54,7 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
         X_train_std = X_scaler.transform(X_train)
         X_test_std = X_scaler.transform(X_test)
 
-        # Define PredefinedSplit (last 15% = validation)
+        # Define PredefinedSplit
         N = len(X_train_std)
         N_val = int(np.ceil(N * 0.15))
         N_train = N - N_val
@@ -89,7 +87,9 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
     benchmark[0] = np.nan  # No history for first value
 
     for i in range(1, len(rets)):
-        benchmark[i] = np.mean(rets[:i])
+        benchmark[i] = np.mean(rets[:i-1])
+    print(f"length of rets: {len(rets)}")
+    print(f"length of preds: {len(preds)}")
 
     # Mask out NaNs in both benchmark and predictions
     valid = ~np.isnan(benchmark) & ~np.isnan(preds)
