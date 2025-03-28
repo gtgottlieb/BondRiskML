@@ -1,76 +1,84 @@
 import pandas as pd
+import numpy as np
 
+# MAYBE INCORRECT CODE!!!!
 def get_forward_rates(yield_df, yield_date_col='Date'):
     """
-    Compute forward rates from zero-coupon yields using the formula:
-    f_t^(n) = (n / 12) * y_t^(n) - ((n - 12) / 12) * y_t^(n-12)
+    Calculate forward rates from zero-coupon yields.
 
     Parameters:
-    - yield_df: DataFrame containing zero-coupon yields. The first column should be the date,
-      and the other columns should represent maturities in months.
-    - yield_date_col: Name of the column containing the dates.
+    - yield_df: DataFrame containing zero-coupon yields with columns ['1 y', '2 y', ..., '10 y'].
+    - yield_date_col: Name of the column containing dates.
 
     Returns:
-    - DataFrame with forward rates. The structure is similar to the input DataFrame.
+    - DataFrame containing forward rates with the same date column and forward rate columns.
     """
-    # Ensure the date column is in datetime format
-    yield_df[yield_date_col] = pd.to_datetime(yield_df[yield_date_col])
-
-    # Extract maturity columns (skip the date column)
-    maturity_columns = yield_df.columns[1:]  # Skip the first column (Date)
+    # Extract the maturity years from column names (e.g., '1 y' -> 1, '2 y' -> 2, etc.)
+    maturities = [int(col.split()[0]) for col in yield_df.columns if col != yield_date_col]
 
     # Initialize a DataFrame to store forward rates
-    forward_rates = pd.DataFrame({yield_date_col: yield_df[yield_date_col]})
+    forward_rates_df = pd.DataFrame()
+    forward_rates_df[yield_date_col] = yield_df[yield_date_col]
 
-    # Compute forward rates
-    for i in range(1, len(maturity_columns)):
-        n = int(maturity_columns[i].split()[0])  # Current maturity in months
-        n_minus_12 = n - 12  # Previous maturity in months
+    # Calculate forward rates using the formula:
+    # f_t(n) = n * y_t(n) - (n-1) * y_t(n-1)
+    for i in range(1, len(maturities)):
+        n = maturities[i]
+        prev_n = maturities[i - 1]
+        forward_rate_col = f"{prev_n}-{n} y"
+        forward_rates_df[forward_rate_col] = (
+            n * yield_df[f"{n} y"] - prev_n * yield_df[f"{prev_n} y"]
+        )
 
-        if n_minus_12 > 0:  # Ensure we have a valid previous maturity
-            # Use maturity columns directly
-            y_n = yield_df[maturity_columns[i]]
-            y_n_minus_12 = yield_df[maturity_columns[i - 1]]
+    return forward_rates_df
 
-            # Compute forward rate using the formula
-            f_n = (n / 12) * y_n - ((n_minus_12) / 12) * y_n_minus_12
-            forward_rates[maturity_columns[i]] = f_n
-
-    return forward_rates
-
-
-def extract_data(filepath, output_path):
+# INCORRECT CODE!!!!
+def get_excess_returns(yield_df, yield_date_col='Date', risk_free_col='1 y'):
     """
-    Extract data from the Excel file with excess returns.
+    Calculate excess returns for bonds.
 
     Parameters:
-    - filepath: path to the Excel file with excess returns
-    - output_path: where to save the resulting Excel file
+    - yield_df: DataFrame containing zero-coupon yields with columns ['1 y', '2 y', ..., '10 y'].
+    - yield_date_col: Name of the column containing dates.
+    - risk_free_col: Name of the column containing the one-year risk-free rate.
+
+    Returns:
+    - DataFrame containing excess returns with the same date column and excess return columns.
     """
+    # Extract the maturity years from column names (e.g., '1 y' -> 1, '2 y' -> 2, etc.)
+    maturities = [int(col.split()[0]) for col in yield_df.columns if col != yield_date_col]
 
-    # Load the data, ignoring the rows before the date 1971-08-01
-    df = pd.read_excel(filepath)
+    # Initialize a DataFrame to store excess returns
+    excess_returns_df = pd.DataFrame()
+    excess_returns_df[yield_date_col] = yield_df[yield_date_col]
 
-    df.columns = [c.strip() for c in df.columns]
+    # Calculate excess returns using the formula:
+    # r_t+1(n) = log(P_t+1(n-1)) - log(P_t(n))
+    # r_x_t+1(n) = r_t+1(n) - y_t(1)
+    for i in range(1, len(maturities)):
+        n = maturities[i]
+        prev_n = maturities[i - 1]
+        excess_return_col = f"Excess Return {n} y"
+        excess_returns_df[excess_return_col] = (
+            (prev_n * yield_df[f"{prev_n} y"].shift(-1) - n * yield_df[f"{n} y"])
+            - yield_df[risk_free_col]
+        )
 
-    # Extract the columns with excess returns
-    indices = ["24 m", "36 m", "48 m", "60 m", "84 m", "120 m"]
-
-    # Create a new DataFrame with the extracted columns
-    df_extracted = df[['Date'] + indices].copy()
-
-    # Save to Excel
-    df_extracted.to_excel(output_path, index=False)
-    print(f"Extracted data saved to: {output_path}")
+    return excess_returns_df
 
 if __name__ == "__main__":
     # Read the Excel file
-    yield_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Aligned_Yields.xlsx", parse_dates=True)
+    yield_df = pd.read_excel("data-folder/Aligned_Yields_Extracted.xlsx", parse_dates=True)
+    #print(yield_df.columns)
 
+    
     # Compute forward rates
     forward_rates = get_forward_rates(yield_df)
-    forward_rates.to_excel("data-folder/Cleaned data/Yields+Final/Forward_Rates.xlsx", index=False)
+    excess_returns = get_excess_returns(yield_df)
+    # Extract columns 0, 1, 2, 3, 4, 5, 7 and 10   
+    forward_rates = forward_rates.iloc[:, [0, 1, 2, 3, 4, 6, 9]]
+    excess_returns = excess_returns.iloc[:, [0, 1, 2, 3, 4, 6, 9]]
+    forward_rates.to_excel("data-folder/Forward_Rates.xlsx", index=False)
+    excess_returns.to_excel("data-folder/Excess_Returns.xlsx", index=False)
     print("Forward rates have been saved as 'Forward_Rates.xlsx'.")
-
-    # Extract necessary columns
-    extract_data("data-folder/Cleaned data/Yields+Final/Forward_Rates.xlsx", "data-folder/Extracted_fwd_rates.xlsx")
+    print("Excess returns have been saved as 'Excess_Returns.xlsx'.")

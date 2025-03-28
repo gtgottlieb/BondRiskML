@@ -4,28 +4,31 @@ import statsmodels.api as sm
 from sklearn.linear_model import LinearRegression
 from Roos import compute_oos_r2
 
-def split_data_by_date(excess_returns, forward_rates, split_date):
+def split_data_by_date(excess_returns, forward_rates, split_date, end_date):
     """
-    Splits excess_returns and forward_rates into in-sample and out-of-sample datasets based on a predefined date.
+    Splits excess_returns and forward_rates into in-sample and out-of-sample datasets based on a predefined date range.
 
     Args:
         excess_returns (pd.DataFrame): DataFrame containing excess returns with a 'Date' column.
         forward_rates (pd.DataFrame): DataFrame containing forward rates with a 'Date' column.
-        split_date (str): The date to split the data, in "YYYY-MM-DD" format.
+        split_date (str): The start date for the out-of-sample period, in "YYYY-MM-DD" format.
+        end_date (str): The end date for the out-of-sample period, in "YYYY-MM-DD" format.
 
     Returns:
         dict: A dictionary containing in-sample and out-of-sample data for both excess_returns and forward_rates.
     """
-    # Convert split_date to datetime
-    split_date = pd.to_datetime(split_date)
 
     # Split excess_returns
     excess_returns_insample = excess_returns.loc[excess_returns["Date"] < split_date]
-    excess_returns_oos = excess_returns.loc[excess_returns["Date"] >= split_date]
+    excess_returns_oos = excess_returns.loc[
+        (excess_returns["Date"] >= split_date) & (excess_returns["Date"] <= end_date)
+    ]
 
     # Split forward_rates
     forward_rates_insample = forward_rates.loc[forward_rates["Date"] < split_date]
-    forward_rates_oos = forward_rates.loc[forward_rates["Date"] >= split_date]
+    forward_rates_oos = forward_rates.loc[
+        (forward_rates["Date"] >= split_date) & (forward_rates["Date"] <= end_date)
+    ]
 
     return {
         "excess_returns_insample": excess_returns_insample,
@@ -55,7 +58,8 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
     model.fit(pcs_insample, y_insample)
 
     # Iteration loop
-    while i < len(excess_returns_oos):
+
+    for i in range(len(excess_returns_oos)):
         # Transform new out-of-sample forward rates with existing PCA loadings
         test_pcs = pca_fit.transform(forward_rates_oos.iloc[[i]])
 
@@ -78,8 +82,6 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
         model = LinearRegression()
         model.fit(pcs_insample, y_insample)
 
-        i += 1
-
     # Convert predictions to a pandas Series
     return pd.Series(pred_values, index=excess_returns_oos.index)
 
@@ -92,12 +94,14 @@ if __name__ == "__main__":
         "data-folder/Extracted_excess_returns.xlsx", parse_dates=True, header=0
     ).iloc[13:, :].reset_index(drop=True)
     start_oos = "1990-01-01"
+    end_oos = "2018-12-01" # Keep it consistent with Bianchi
 
     # Convert start_oos to datetime
     start_oos_date = pd.to_datetime(start_oos)
+    end_oos_date = pd.to_datetime(end_oos)
 
     # Extract insample and oos data into a dictionary
-    dic = split_data_by_date(excess_returns, forward_rates, start_oos_date)
+    dic = split_data_by_date(excess_returns, forward_rates, start_oos_date, end_oos_date)
 
     for key in [
         "excess_returns_insample",
@@ -138,7 +142,7 @@ if __name__ == "__main__":
         predictions[column] = pred_values
 
     
-        # Compute the out-of-sample R2
-        for key in predictions.keys():
-            print(f"Out-of-sample R2 for {key}: {compute_oos_r2(excess_returns_oos[key], predictions[key])}")
+    # Compute the out-of-sample R2
+    for key in predictions.keys():
+        print(f"Out-of-sample R2 for {key}: {compute_oos_r2(excess_returns_oos[key], predictions[key])}")
     
