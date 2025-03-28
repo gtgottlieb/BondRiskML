@@ -1,9 +1,9 @@
 import pandas as pd
-import numpy as np
 
 def get_forward_rates(yield_df, yield_date_col='Date'):
     """
-    Compute forward rates from zero-coupon yields.
+    Compute forward rates from zero-coupon yields using the formula:
+    f_t^(n) = (n / 12) * y_t^(n) - ((n - 12) / 12) * y_t^(n-12)
 
     Parameters:
     - yield_df: DataFrame containing zero-coupon yields. The first column should be the date,
@@ -24,15 +24,20 @@ def get_forward_rates(yield_df, yield_date_col='Date'):
 
     # Compute forward rates
     for i in range(1, len(maturity_columns)):
-        # Use maturity columns directly
-        P_n = np.exp(-int(maturity_columns[i].split()[0]) / 12 * yield_df[maturity_columns[i]])
-        P_n_minus_1 = np.exp(-int(maturity_columns[i - 1].split()[0]) / 12 * yield_df[maturity_columns[i - 1]])
+        n = int(maturity_columns[i].split()[0])  # Current maturity in months
+        n_minus_12 = n - 12  # Previous maturity in months
 
-        # Equation 5.2: Compute forward rates
-        f_n = (np.log(P_n_minus_1) - np.log(P_n)) * 12  # Annualized forward rate
-        forward_rates[maturity_columns[i]] = f_n
+        if n_minus_12 > 0:  # Ensure we have a valid previous maturity
+            # Use maturity columns directly
+            y_n = yield_df[maturity_columns[i]]
+            y_n_minus_12 = yield_df[maturity_columns[i - 1]]
+
+            # Compute forward rate using the formula
+            f_n = (n / 12) * y_n - ((n_minus_12) / 12) * y_n_minus_12
+            forward_rates[maturity_columns[i]] = f_n
 
     return forward_rates
+
 
 def extract_data(filepath, output_path):
     """
