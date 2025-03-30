@@ -54,13 +54,19 @@ if __name__ == "__main__":
     date_col = yield_df.columns[0]
 
     forward_rates, xr = get_forward_rates(yield_df)
+    
+
 
     forward_rates.columns = ["Date", "1 year", "2 years", "3 years", "4 years", "5 years"]
     xr.columns = ["Date", "1 year", "2 years", "3 years", "4 years", "5 years"]
 
+    # Save to excel
+    forward_rates.to_excel("data-folder/CP replication data/forward_rates.xlsx", index=False)
+    xr.to_excel("data-folder/CP replication data/xr.xlsx", index=False)
+
     ## Getting the data ready for analysis
     start_date = "1964-01-01"
-    end_date = "2019-01-01"
+    end_date = "2003-01-01"
 
     # Filter the data for the specified date range
     forward_rates = forward_rates[(forward_rates['Date'] >= start_date) & (forward_rates['Date'] <= end_date)]
