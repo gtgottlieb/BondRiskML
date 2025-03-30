@@ -124,7 +124,8 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
 if __name__ == "__main__":
     # Input files
     excess_returns_file = "data-folder/Extracted_excess_returns.xlsx"
-    forward_rates_file = "data-folder/Extracted_fwd_rates_new.xlsx"
+    #forward_rates_file = "data-folder/Extracted_fwd_rates_new.xlsx"
+    forward_rates_file = "data-folder/Extracted_fwd_rates.xlsx"
 
     df_all = prepare_data(excess_returns_file, forward_rates_file)
     df_all = df_all[df_all.index <= "2018-12-01"]   # Same as Bianchi
