@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 
 def get_forward_rates(yield_df):
     """
@@ -14,7 +15,7 @@ def get_forward_rates(yield_df):
     logPt_n_minus_1 = pd.DataFrame(index=yield_df.index, dtype=np.float64)
     forward_rates = pd.DataFrame(index=yield_df.index, dtype=np.float64)
 
-    for n in range(1, len(yield_df.columns)):  # Start from 1
+    for n in range(1, len(yield_df.columns)):
         col_name_n = yield_df.columns[n]
         col_name_n_minus_1 = yield_df.columns[n - 1]
         
@@ -76,10 +77,9 @@ if __name__ == "__main__":
     xr = xr.iloc[:, 2:6]
     xr['Row_Average'] = xr.mean(axis=1) # Compute row average for each row in xr
     forward_rates = forward_rates.iloc[:, 1:6]
-    
+
     # Perform PCA on forward_rates
     pca = PCA(n_components=5)
-    # Scale forward_rates
     principal_components = pca.fit_transform(forward_rates)
 
     # Create a DataFrame for the principal components
@@ -108,5 +108,5 @@ if __name__ == "__main__":
     print("\nRegression coefficients (Forward Rates):\n") 
     print("Regression coefficients:", model2.coef_)
     print("Intercept:", model2.intercept_)
-    print("R-squared:", model2.score(X, y)) 
+    print("R-squared:", model2.score(X, y))
 
