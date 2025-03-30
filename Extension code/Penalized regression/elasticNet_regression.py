@@ -25,6 +25,8 @@ def prepare_data(xr_path, fwd_path):
     df = pd.merge(df_xr, df_fwd, on="date", suffixes=("_xr", "_fwd"))
     df.set_index("date", inplace=True)
 
+    
+
     return df
 
 def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
@@ -32,7 +34,7 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
     fwd_cols = [col for col in df.columns if col.endswith("m_fwd")]
 
     # SHIFT TARGET FIRST
-    #df[target_col] = df[target_col].shift(-12)
+    df[target_col] = df[target_col].shift(-12)
     df = df[[target_col] + fwd_cols].dropna()
 
     oos_start_idx = df.index.get_loc(pd.to_datetime(start_oos))
@@ -54,7 +56,7 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
         X_train_std = X_scaler.transform(X_train)
         X_test_std = X_scaler.transform(X_test)
 
-        # Define PredefinedSplit
+        # Define PredefinedSplit (last 15% = validation)
         N = len(X_train_std)
         N_val = int(np.ceil(N * 0.15))
         N_train = N - N_val
@@ -64,7 +66,6 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
         # Elastic NetCV with l1_ratio grid
         model = ElasticNetCV(cv=ps,
                              l1_ratio=[.1, .3, .5, .7, .9],
-                             #l1_ratio=1,
                              max_iter=5000,
                              n_jobs=-1,
                              random_state=42)
@@ -88,7 +89,7 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
     benchmark[0] = np.nan  # No history for first value
 
     for i in range(1, len(rets)):
-        benchmark[i] = np.mean(rets[:i-1])
+        benchmark[i] = np.mean(rets[:i])
 
     # Mask out NaNs in both benchmark and predictions
     valid = ~np.isnan(benchmark) & ~np.isnan(preds)
