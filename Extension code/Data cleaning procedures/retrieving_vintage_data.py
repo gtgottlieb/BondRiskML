@@ -1,7 +1,7 @@
 import os
 import zipfile
 import pandas as pd
-from data_cleaning import clean_data
+from Macro_yield_aligning import clean_data
 
 def extract_last_rows_from_vintages(vintages_folder=r"c:\Users\Jan\OneDrive - Erasmus University Rotterdam\Desktop\BondRiskML\Vintages", 
                                     output_file=r"c:\Users\Jan\OneDrive - Erasmus University Rotterdam\Desktop\BondRiskML\data-folder\Raw data\vintages.csv"):
