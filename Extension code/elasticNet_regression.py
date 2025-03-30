@@ -32,7 +32,7 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
     fwd_cols = [col for col in df.columns if col.endswith("m_fwd")]
 
     # SHIFT TARGET FIRST
-    df[target_col] = df[target_col].shift(-12)
+    #df[target_col] = df[target_col].shift(-12)
     df = df[[target_col] + fwd_cols].dropna()
 
     oos_start_idx = df.index.get_loc(pd.to_datetime(start_oos))
@@ -64,6 +64,7 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
         # Elastic NetCV with l1_ratio grid
         model = ElasticNetCV(cv=ps,
                              l1_ratio=[.1, .3, .5, .7, .9],
+                             #l1_ratio=1,
                              max_iter=5000,
                              n_jobs=-1,
                              random_state=42)
@@ -88,8 +89,6 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
 
     for i in range(1, len(rets)):
         benchmark[i] = np.mean(rets[:i-1])
-    print(f"length of rets: {len(rets)}")
-    print(f"length of preds: {len(preds)}")
 
     # Mask out NaNs in both benchmark and predictions
     valid = ~np.isnan(benchmark) & ~np.isnan(preds)
