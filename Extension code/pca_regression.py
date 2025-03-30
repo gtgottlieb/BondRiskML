@@ -48,7 +48,7 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
     pred_values = []
 
     # Initial PCA on forward_rates_insample
-    pca = PCA(n_components=3)
+    pca = PCA(n_components = 3)
     pca_fit = pca.fit(forward_rates_insample)
     pcs_insample = pca_fit.transform(forward_rates_insample)
     y_insample = excess_returns_insample
@@ -88,10 +88,10 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
 if __name__ == "__main__":
     # Load data without the first 13 rows
     forward_rates = pd.read_excel(
-        "data-folder/Extracted_fwd_rates_new.xlsx", parse_dates=True, header=0
+        "data-folder/Forward_rates.xlsx", parse_dates=True, header=0
     ).iloc[13:, :].reset_index(drop=True)
     excess_returns = pd.read_excel(
-        "data-folder/Extracted_excess_returns.xlsx", parse_dates=True, header=0
+        "data-folder/Excess_return.xlsx", parse_dates=True, header=0
     ).iloc[13:, :].reset_index(drop=True)
     start_oos = "1990-01-01"
     end_oos = "2018-12-01" # Keep it consistent with Bianchi
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     forward_rates_oos = dic["forward_rates_oos"]
 
     # List of column names to iterate over
-    columns_to_predict = ["24 m", "48 m", "60 m", "84 m", "120 m"]
+    columns_to_predict = ["2 years", "3 years", "4 years", "5 years", "7 years", "10 years"]
 
     # Dictionary to store predictions for each column
     predictions = {}

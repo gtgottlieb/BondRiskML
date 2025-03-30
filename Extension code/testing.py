@@ -1,13 +1,14 @@
 import pandas as pd
-excess_returns = pd.read_excel("data-folder/Cleaned data/Yields+Final/Excess_Returns.xlsx", index_col=0, parse_dates=True)
-excess_returns = excess_returns.loc["1984-01-01":"2018-06-01"]
-columns_to_extract = [f"{i} m" for i in range(12, 121, 12)]
-excess_returns = excess_returns[columns_to_extract]
 
-annualized_mean = excess_returns.mean() * 12
-annualized_std = excess_returns.std() * (12 ** 0.5)
+yields_df = pd.read_excel("data-folder/Raw data/LW_monthly.xlsx", parse_dates=True, skiprows=8)
+yields_df.columns = yields_df.columns.str.strip()
+cols_to_extract = ["Date", "12 m", "24 m", "36 m", "48 m", "60 m", "72 m"]
+yields_df = yields_df[cols_to_extract]
+yields_df.columns = ["Date", "1 year", "2 years", "3 years", "4 years", "5 years", "6 years"]
+# Convert Excel serial dates to proper datetime format
+yields_df["Date"] = pd.to_datetime(yields_df["Date"].astype(str), format="%Y%m")
 
-print("Annualized Mean:")
-print(annualized_mean)
-print("\nAnnualized Std:")
-print(annualized_std)
+print(yields_df.head())
+# Save to new Excel file
+yields_df.to_excel("data-folder/CP replication data/Yields.xlsx", index=False)
+

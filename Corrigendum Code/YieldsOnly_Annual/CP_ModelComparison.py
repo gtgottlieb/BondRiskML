@@ -98,7 +98,7 @@ if __name__ == "__main__":
         nAvg = 10
 
     OOS_Start = '1989-01-31'
-    data_path = '../../../Data/YIELDS_FWDS/CPDataStore.h5'
+    data_path = 'data-folder/Raw data/LW_monthly.xlsx'
     data_set = 'LW'
     rhs_vars_set = 'Large'
     run_tag = 'RHS_'+rhs_vars_set
@@ -161,15 +161,17 @@ if __name__ == "__main__":
 
 
     #%% Choose Models to Compute
-    models = [NFB.NN1Layer_3, NFB.NN1Layer_5, NFB.NN1Layer_7,
-              NFB.NN2Layer_3, NFB.NN2Layer_5, NFB.NN2Layer_7,
-              NFB.NN3Layer_3, NFB.NN3Layer_5, NFB.NN3Layer_543, NFB.NN3Layer_7,
-              NFB.NN4Layer_3, NFB.NN4Layer_5, NFB.NN4Layer_5432]
+    models = [NFB.NN1Layer_3]#, NFB.NN1Layer_5, NFB.NN1Layer_7,
+              #NFB.NN2Layer_3, NFB.NN2Layer_5, NFB.NN2Layer_7,
+              #NFB.NN3Layer_3, NFB.NN3Layer_5, NFB.NN3Layer_543, NFB.NN3Layer_7,
+              #NFB.NN4Layer_3, NFB.NN4Layer_5, NFB.NN4Layer_5432]
 
-    modelnames = ['NN1Layer_3', 'NN1Layer_5', 'NN1Layer_7',
-                  'NN2Layer_3', 'NN2Layer_5', 'NN2Layer_7',
-                  'NN3Layer_3', 'NN3Layer_5', 'NN3Layer_543', 'NN3Layer_7',
-                  'NN4Layer_3', 'NN4Layer_5', 'NN4_Layer_5432']
+
+    modelnames = ['NN1Layer_3']
+                # , 'NN1Layer_5', 'NN1Layer_7',
+                #  'NN2Layer_3', 'NN2Layer_5', 'NN2Layer_7',
+                # 'NN3Layer_3', 'NN3Layer_5', 'NN3Layer_543', 'NN3Layer_7',
+                #  'NN4Layer_3', 'NN4Layer_5', 'NN4_Layer_5432']
 
     # Initialize Object for Saving
     VarSave = {}
