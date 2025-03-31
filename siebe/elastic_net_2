@@ -81,9 +81,9 @@ def ElasticNet_NoMacro_Plain(Xexog, Y):
     Xexog_test = Xexog[-1,:]
     Xexog_test = Xexog_test.reshape(1, -1)
 
-    #Xexogscaler_train = StandardScaler()
-    #Xexog_train = Xexogscaler_train.fit_transform(Xexog_train)
-    #Xexog_test = Xexogscaler_train.transform(Xexog_test)
+    Xexogscaler_train = StandardScaler()
+    Xexog_train = Xexogscaler_train.fit_transform(Xexog_train)
+    Xexog_test = Xexogscaler_train.transform(Xexog_test)
 
     # Construct Validation sample as last 15% of sample
     N_train = int(np.round(np.size(Xexog_train,axis=0)*0.85))
