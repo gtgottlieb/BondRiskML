@@ -41,7 +41,7 @@ def process_yield_data(yields_df):
     
     return forward_rates, xr
 
-def run_cp_replication(yields_df, start_date="1964-01-01", end_date="2003-01-01"):
+def run_cp_replication(yields_df, start_date="1964-01-01", end_date="2019-01-01"):
     """
     Run the CP replication process on the given yield data DataFrame.
 
@@ -85,12 +85,6 @@ if __name__ == "__main__":
     file_path = "data-folder/CP replication data/Yields.xlsx"
     yields_df = pd.read_excel(file_path, parse_dates=True)
     run_cp_replication(yields_df)
-
-    # Saving the preprocessed data to Excel files
-    yields_df = pd.read_excel("data-folder/Aligned_Yields_Extracted.xlsx", parse_dates=True)
-    forward_rates, xr = process_yield_data(yields_df)
-    forward_rates.to_excel("data-folder/forward_rates.xlsx", index=False)
-    xr.to_excel("data-folder/xr.xlsx", index=False)
 
 
 

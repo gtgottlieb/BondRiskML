@@ -16,22 +16,39 @@ def prepare_data(xr_path, fwd_path):
     df_xr = pd.read_excel(xr_path)
     df_fwd = pd.read_excel(fwd_path)
 
+    # Standardize column names
     df_xr.columns = [c.strip().lower() for c in df_xr.columns]
     df_fwd.columns = [c.strip().lower() for c in df_fwd.columns]
 
+    print("df_xr columns before renaming:", df_xr.columns)
+    print("df_fwd columns before renaming:", df_fwd.columns)
+
+    # Rename columns in df_fwd to avoid conflicts
+    df_fwd = df_fwd.rename(columns=lambda x: f"{x}_fwd" if x != "date" else x)
+
+    print("df_xr columns after renaming:", df_xr.columns)
+    print("df_fwd columns after renaming:", df_fwd.columns)
+
+    # Convert 'date' column to datetime
     df_xr['date'] = pd.to_datetime(df_xr['date'])
     df_fwd['date'] = pd.to_datetime(df_fwd['date'])
 
-    df = pd.merge(df_xr, df_fwd, on="date", suffixes=("_xr", "_fwd"))
-    df.set_index("date", inplace=True)
+    # Merge on 'date' column
+    df = pd.merge(df_xr, df_fwd, on="date")
 
-    
+    # Set 'date' as the index
+    df.set_index("date", inplace=True)
 
     return df
 
 def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
-    target_col = f"{target_maturity} m_xr"
-    fwd_cols = [col for col in df.columns if col.endswith("m_fwd")]
+    # Use the current column naming convention
+    target_col = f"{target_maturity} y"  # Match the excess returns column
+    fwd_cols = [col for col in df.columns if col.endswith("y_fwd")]  # Match forward rate columns
+
+    # Debugging: Check if target_col exists
+    if target_col not in df.columns:
+        raise KeyError(f"Target column '{target_col}' not found in DataFrame. Available columns: {df.columns}")
 
     # SHIFT TARGET FIRST
     df[target_col] = df[target_col].shift(-12)
@@ -102,9 +119,8 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
         ss_tot = np.nansum((rets[valid] - benchmark[valid])**2)
         r2_oos = 1 - ss_res / ss_tot
 
-
     # Print Diagnostics
-    print(f"\nDiagnostics for {target_maturity}m:")
+    print(f"\nDiagnostics for {target_maturity}y:")
     print(f"→ Std. dev of actual returns:     {np.std(rets):.4f}")
     print(f"→ Std. dev of predicted returns:  {np.std(preds):.4f}")
     print(f"→ Model MSE:                      {np.mean(ss_res):.6f}")
@@ -123,14 +139,14 @@ def run_elastic_net(df, target_maturity, start_oos="1990-01-01"):
 
 if __name__ == "__main__":
     # Input files
-    excess_returns_file = "data-folder/Extracted_excess_returns.xlsx"
+    excess_returns_file = "data-folder/Fwd rates and xr/xr.xlsx"
     #forward_rates_file = "data-folder/Extracted_fwd_rates_new.xlsx"
-    forward_rates_file = "data-folder/Extracted_fwd_rates.xlsx"
+    forward_rates_file = "data-folder/Fwd rates and xr/forward_rates.xlsx"
 
     df_all = prepare_data(excess_returns_file, forward_rates_file)
     df_all = df_all[df_all.index <= "2018-12-01"]   # Same as Bianchi
 
-    maturities = [24, 36, 48, 60, 84, 120]
+    maturities = [2, 4, 4, 5, 7, 10]
 
     print("Elastic Net Results (OOS R²):\n")
     for mat in maturities:
