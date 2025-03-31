@@ -4,7 +4,6 @@ def compute_benchmark_prediction(xr_insample, xr_oos):
     benchmark_preds = []
 
     # Ensure xr_insample is a DataFrame
-    # xr_insample = xr_insample.to_frame()  # Uncomment if necessary
 
     for i in range(len(xr_oos)):
         combined = pd.concat([xr_insample, xr_oos.iloc[:i+1]])

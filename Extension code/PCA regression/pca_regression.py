@@ -47,11 +47,15 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
 
     pred_values = []
 
+
+    # Define the number of components
+    n_components = 3
     # Initial PCA on forward_rates_insample
-    pca = PCA(n_components = 3)
+    pca = PCA(n_components)
     pca_fit = pca.fit(forward_rates_insample)
     pcs_insample = pca_fit.transform(forward_rates_insample)
     y_insample = excess_returns_insample
+
 
     # Initial regression using LinearRegression
     model = LinearRegression()
@@ -59,6 +63,7 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
 
     # Iteration loop
 
+    
     for i in range(len(excess_returns_oos)):
         # Transform new out-of-sample forward rates with existing PCA loadings
         test_pcs = pca_fit.transform(forward_rates_oos.iloc[[i]])
@@ -75,7 +80,7 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
         forward_rates_insample = pd.concat([forward_rates_insample, X_new_fwd])
 
         # Recompute PCA and re-fit model with the updated dataset
-        pca_fit = PCA(n_components=3).fit(forward_rates_insample) 
+        pca_fit = PCA(n_components).fit(forward_rates_insample) 
         pcs_insample = pca_fit.transform(forward_rates_insample)
         y_insample = excess_returns_insample
 
