@@ -1,30 +1,18 @@
 import numpy as np
 
-def compute_oos_r2(rets, preds):
+def r2_oos(actual, predicted, benchmark):
     """
-    Compute the out-of-sample R² (oos R²) using a shifted expanding mean benchmark.
+    Computes the out-of-sample R^2 (R^2_oos) as per Campbell and Thompson (2008).
 
     Parameters:
-        rets (np.ndarray): Actual returns.
-        preds (np.ndarray): Predicted returns.
+    - actual: np.array of actual values x_{T, t:t+12}^{(n)}
+    - predicted: np.array of predicted values \hat{x}_{T, t:t+12}^{(n)}(M)
+    - benchmark: np.array of benchmark predictions \bar{x}_{T, t:t+12}^{(n)}
 
     Returns:
-        float: The computed oos R² value.
+    - R^2_oos value
     """
-    # Shifted expanding mean benchmark
-    benchmark = np.empty_like(rets)
-    benchmark[0] = np.nan  # No history for first value
-
-    for i in range(1, len(rets)):
-        benchmark[i] = np.mean(rets[:i])
-
-    # Mask out NaNs in both benchmark and predictions
-    valid = ~np.isnan(benchmark) & ~np.isnan(preds)
-
-    if np.sum(valid) < 10:
-        print("Warning: too few valid data points to compute reliable R².")
-        return np.nan
-
-    ss_res = np.nansum((rets[valid] - preds[valid])**2)
-    ss_tot = np.nansum((rets[valid] - benchmark[valid])**2)
-    return 1 - ss_res / ss_tot
+    numerator = np.sum((actual - predicted) ** 2)
+    denominator = np.sum((actual - benchmark) ** 2)
+    
+    return 1 - (numerator / denominator)

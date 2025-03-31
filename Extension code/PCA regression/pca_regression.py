@@ -1,8 +1,8 @@
 from sklearn.decomposition import PCA
 import pandas as pd
-import statsmodels.api as sm
 from sklearn.linear_model import LinearRegression
-from Roos import compute_oos_r2
+from compute_benchmark import compute_benchmark_prediction
+from Roos import r2_oos
 
 def split_data_by_date(excess_returns, forward_rates, split_date, end_date):
     """
@@ -37,6 +37,7 @@ def split_data_by_date(excess_returns, forward_rates, split_date, end_date):
         "forward_rates_oos": forward_rates_oos,
     }
 
+# Let's assume that this code is correct (for now)
 def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
                              excess_returns_oos, forward_rates_oos):
     """
@@ -44,14 +45,17 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
     predicts the next out-of-sample value, then updates the model with that new data point.
     """
 
-    i = 0
     pred_values = []
 
+
+    # Define the number of components
+    n_components = 3
     # Initial PCA on forward_rates_insample
-    pca = PCA(n_components = 3)
+    pca = PCA(n_components)
     pca_fit = pca.fit(forward_rates_insample)
     pcs_insample = pca_fit.transform(forward_rates_insample)
     y_insample = excess_returns_insample
+
 
     # Initial regression using LinearRegression
     model = LinearRegression()
@@ -59,6 +63,7 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
 
     # Iteration loop
 
+    
     for i in range(len(excess_returns_oos)):
         # Transform new out-of-sample forward rates with existing PCA loadings
         test_pcs = pca_fit.transform(forward_rates_oos.iloc[[i]])
@@ -75,7 +80,7 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
         forward_rates_insample = pd.concat([forward_rates_insample, X_new_fwd])
 
         # Recompute PCA and re-fit model with the updated dataset
-        pca_fit = PCA(n_components=3).fit(forward_rates_insample)  # Ensure consistent number of components
+        pca_fit = PCA(n_components).fit(forward_rates_insample) 
         pcs_insample = pca_fit.transform(forward_rates_insample)
         y_insample = excess_returns_insample
 
@@ -86,13 +91,10 @@ def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
     return pd.Series(pred_values, index=excess_returns_oos.index)
 
 if __name__ == "__main__":
-    # Load data without the first 13 rows
-    forward_rates = pd.read_excel(
-        "data-folder/Forward_rates.xlsx", parse_dates=True, header=0
-    ).iloc[13:, :].reset_index(drop=True)
-    excess_returns = pd.read_excel(
-        "data-folder/Excess_return.xlsx", parse_dates=True, header=0
-    ).iloc[13:, :].reset_index(drop=True)
+    # Load the data on forward rates and excess returns
+    forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
+    xr = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx") 
+
     start_oos = "1990-01-01"
     end_oos = "2018-12-01" # Keep it consistent with Bianchi
 
@@ -101,7 +103,7 @@ if __name__ == "__main__":
     end_oos_date = pd.to_datetime(end_oos)
 
     # Extract insample and oos data into a dictionary
-    dic = split_data_by_date(excess_returns, forward_rates, start_oos_date, end_oos_date)
+    dic = split_data_by_date(xr, forward_rates, start_oos_date, end_oos_date)
 
     for key in [
         "excess_returns_insample",
@@ -110,6 +112,7 @@ if __name__ == "__main__":
         "forward_rates_oos",
     ]:
         dic[key] = dic[key].drop(columns="Date")
+    
 
     excess_returns_insample = dic["excess_returns_insample"]
     excess_returns_oos = dic["excess_returns_oos"]
@@ -117,10 +120,11 @@ if __name__ == "__main__":
     forward_rates_oos = dic["forward_rates_oos"]
 
     # List of column names to iterate over
-    columns_to_predict = ["2 years", "3 years", "4 years", "5 years", "7 years", "10 years"]
+    columns_to_predict = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
 
     # Dictionary to store predictions for each column
     predictions = {}
+
 
     # Run iterative PCA regression for each column
     for column in columns_to_predict:
@@ -142,7 +146,12 @@ if __name__ == "__main__":
         predictions[column] = pred_values
 
     
-    # Compute the out-of-sample R2
+    ## Compute the out-of-sample R2
+    # Compute benchmark predictions
+    benchmark_predictions = compute_benchmark_prediction(
+        excess_returns_insample, excess_returns_oos)
+
+    
     for key in predictions.keys():
-        print(f"Out-of-sample R2 for {key}: {compute_oos_r2(excess_returns_oos[key], predictions[key])}")
+        print(f"Out-of-sample R2 for {key}: {r2_oos(excess_returns_oos[key], predictions[key], benchmark_predictions[key])}")
     
