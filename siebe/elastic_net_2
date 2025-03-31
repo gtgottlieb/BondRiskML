@@ -20,8 +20,8 @@ def R2OOS(y_true, y_forecast, expanding_mean):
 
 
 # === SETTINGS ===
-EXCESS_RETURN_PATH = "path to excess returns"
-FWD_RATE_PATH = "path to fwd rates"
+EXCESS_RETURN_PATH = "siebe/xrcorrect.xlsx"
+FWD_RATE_PATH = "siebe/fwdcorrect.xlsx"
 OOS_START_DATE = "1990-01-01"
 OOS_END_DATE = "2018-12-01"
 FULL_START_DATE = "1971-08-01"  # for full sample filtering
