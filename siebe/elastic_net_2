@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_squared_error
-import os
 from sklearn.linear_model import ElasticNetCV
-from sklearn.linear_model import MultiTaskElasticNetCV
+from sklearn.linear_model import ElasticNetCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import PredefinedSplit
 
 
 # === R² OOS function ===
@@ -20,8 +21,8 @@ def R2OOS(y_true, y_forecast, expanding_mean):
 
 
 # === SETTINGS ===
-EXCESS_RETURN_PATH = "path to excess returns"
-FWD_RATE_PATH = "path to fwd rates"
+EXCESS_RETURN_PATH = "data-folder/Fwd rates and xr/xr.xlsx"
+FWD_RATE_PATH = "data-folder/Fwd rates and xr/forward_rates.xlsx"
 OOS_START_DATE = "1990-01-01"
 OOS_END_DATE = "2018-12-01"
 FULL_START_DATE = "1971-08-01"  # for full sample filtering
@@ -41,7 +42,7 @@ df = pd.merge(df_xr, df_fwd, on="date", suffixes=("_xr", "_fwd"))
 df.set_index("date", inplace=True)
 
 # Define maturities and columns
-maturities = ["24 m", "36 m", "48 m", "60 m", "84 m", "120 m"]
+maturities = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
 target_cols = [m + "_xr" for m in maturities]
 fwd_cols = [m + "_fwd" for m in maturities]
 
@@ -74,19 +75,15 @@ print("Running Elastic Net with expanding window...\n")
 
 
 def ElasticNet_NoMacro_Plain(Xexog, Y):
-    from sklearn.linear_model import ElasticNetCV
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.model_selection import PredefinedSplit
-    from sklearn.model_selection import GridSearchCV
 
     Xexog_train = Xexog[:-1,:]
     Y_train = Y[:-1,:]
     Xexog_test = Xexog[-1,:]
     Xexog_test = Xexog_test.reshape(1, -1)
 
-    Xexogscaler_train = StandardScaler()
-    Xexog_train = Xexogscaler_train.fit_transform(Xexog_train)
-    Xexog_test = Xexogscaler_train.transform(Xexog_test)
+    #Xexogscaler_train = StandardScaler()
+    #Xexog_train = Xexogscaler_train.fit_transform(Xexog_train)
+    #Xexog_test = Xexogscaler_train.transform(Xexog_test)
 
     # Construct Validation sample as last 15% of sample
     N_train = int(np.round(np.size(Xexog_train,axis=0)*0.85))
