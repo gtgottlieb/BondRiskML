@@ -1,7 +1,6 @@
-import argparse
 import pandas as pd
 import numpy as np
-from sklearn.decomposition import PCA
+from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from compute_benchmark import compute_benchmark_prediction
@@ -58,36 +57,26 @@ def iterative_pca_regression(er_in: pd.DataFrame,
                              n_fwd_components: int = 3,
                              n_macro_components: int = 8) -> pd.Series:
     """
-    Performs iterative PCA regression. At each step the model is trained on the 
-    current in-sample data, predicts the next out-of-sample observation, then the 
-    new data point is added to the training set.
-
-    Args:
-        er_in (pd.DataFrame): In-sample excess returns.
-        fr_in (pd.DataFrame): In-sample forward rates.
-        er_out (pd.DataFrame): Out-of-sample excess returns.
-        fr_out (pd.DataFrame): Out-of-sample forward rates.
-        macro_in (pd.DataFrame, optional): In-sample macro data.
-        macro_out (pd.DataFrame, optional): Out-of-sample macro data.
-        n_fwd_components (int): Number of PCA components for forward rates.
-        n_macro_components (int): Number of PCA components for macro data (fixed at 8).
-
-    Returns:
-        pd.Series: Predictions for out-of-sample observations.
+    Performs iterative PCA regression with fixes:
+    - Uses IncrementalPCA to update PCA without full re-fit.
+    - Extracts predictions using flatten().
+    - Uses ignore_index when concatenating new samples.
     """
     predictions = []
 
-    # Prepare PCA for macro data if provided.
+    # Prepare IncrementalPCA for macro data if provided.
     if macro_in is not None:
         macro_scaler = StandardScaler().fit(macro_in)
         scaled_macro_in = macro_scaler.transform(macro_in)
-        pca_macro = PCA(n_components=n_macro_components).fit(scaled_macro_in)
+        pca_macro = IncrementalPCA(n_components=n_macro_components)
+        pca_macro.fit(scaled_macro_in)
         macro_pcs_in = pca_macro.transform(scaled_macro_in)
     else:
         macro_pcs_in = None
 
-    # PCA for forward rates.
-    pca_fwd = PCA(n_components=n_fwd_components).fit(fr_in)
+    # Incremental PCA for forward rates.
+    pca_fwd = IncrementalPCA(n_components=n_fwd_components)
+    pca_fwd.fit(fr_in)
     pcs_fwd_in = pca_fwd.transform(fr_in)
 
     # Combine forward and macro PCs as available.
@@ -109,24 +98,26 @@ def iterative_pca_regression(er_in: pd.DataFrame,
         else:
             X_test = test_pcs_fwd
 
-        # Predict the new observation.
-        prediction = model.predict(X_test)[0][0]
+        # Predict the new observation (flatten to avoid issues with shape).
+        prediction = model.predict(X_test).flatten()[0]
         predictions.append(prediction)
 
-        # Append new observation into in-sample datasets.
-        er_in = pd.concat([er_in, er_out.iloc[[idx]]])
-        fr_in = pd.concat([fr_in, fr_out.iloc[[idx]]])
+        # Append new observation into in-sample datasets using ignore_index.
+        er_in = pd.concat([er_in, er_out.iloc[[idx]]], ignore_index=True)
+        fr_in = pd.concat([fr_in, fr_out.iloc[[idx]]], ignore_index=True)
         if macro_in is not None and macro_out is not None:
-            macro_in = pd.concat([macro_in, macro_out.iloc[[idx]]])
+            macro_in = pd.concat([macro_in, macro_out.iloc[[idx]]], ignore_index=True)
 
-        # Refit PCA and regression model with the updated in-sample data.
-        pca_fwd = PCA(n_components=n_fwd_components).fit(fr_in)
+        # Update IncrementalPCA with the new observation.
+        # For forward rates, update using the new sample.
+        pca_fwd.partial_fit(fr_out.iloc[[idx]])
         pcs_fwd_in = pca_fwd.transform(fr_in)
 
         if macro_in is not None:
+            # Refit scaler and update IncrementalPCA for macro data.
             macro_scaler = StandardScaler().fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
-            pca_macro = PCA(n_components=n_macro_components).fit(scaled_macro_in)
+            pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
             X_in = np.hstack([pcs_fwd_in, macro_pcs_in])
         else:
@@ -150,6 +141,14 @@ def main(n_fwd_components: int, use_macro: bool):
     # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
         df["Date"] = pd.to_datetime(df["Date"])
+    
+    # Lag macro data if using it.
+    if use_macro:
+        macro_data = macro_data.sort_values("Date").copy()
+        # Lag all columns except the Date column by one period.
+        macro_cols = macro_data.columns.difference(["Date"])
+        macro_data[macro_cols] = macro_data[macro_cols].shift(1)
+        macro_data = macro_data.dropna().reset_index(drop=True)
 
     # Use macro data only if flagged.
     macro_for_split = macro_data if use_macro else None
@@ -161,6 +160,22 @@ def main(n_fwd_components: int, use_macro: bool):
     for key in data_split:
         if data_split[key] is not None:
             data_split[key] = data_split[key].drop(columns="Date")
+    
+    # If using macro data, align the datasets by truncating to the minimum length.
+    if use_macro and data_split["macro_data_in"] is not None:
+        min_in = min(len(data_split["excess_returns_in"]),
+                     len(data_split["forward_rates_in"]),
+                     len(data_split["macro_data_in"]))
+        data_split["excess_returns_in"] = data_split["excess_returns_in"].iloc[:min_in]
+        data_split["forward_rates_in"] = data_split["forward_rates_in"].iloc[:min_in]
+        data_split["macro_data_in"] = data_split["macro_data_in"].iloc[:min_in]
+    if use_macro and data_split["macro_data_out"] is not None:
+        min_out = min(len(data_split["excess_returns_out"]),
+                      len(data_split["forward_rates_out"]),
+                      len(data_split["macro_data_out"]))
+        data_split["excess_returns_out"] = data_split["excess_returns_out"].iloc[:min_out]
+        data_split["forward_rates_out"] = data_split["forward_rates_out"].iloc[:min_out]
+        data_split["macro_data_out"] = data_split["macro_data_out"].iloc[:min_out]
 
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
@@ -200,4 +215,4 @@ def main(n_fwd_components: int, use_macro: bool):
 
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=5, use_macro=False)
+    main(n_fwd_components=10, use_macro=True)
