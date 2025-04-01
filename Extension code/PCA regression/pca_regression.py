@@ -1,183 +1,218 @@
-from sklearn.decomposition import PCA
 import pandas as pd
+import numpy as np
+from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
 
-def split_data_by_date(excess_returns, forward_rates, split_date, end_date):
+def split_data_by_date(excess_returns: pd.DataFrame,
+                       forward_rates: pd.DataFrame,
+                       split_date, end_date,
+                       macro_data: pd.DataFrame = None) -> dict:
     """
-    Splits excess_returns and forward_rates into in-sample and out-of-sample datasets based on a predefined date range.
+    Splits excess returns, forward rates, and optionally macro data into 
+    in-sample and out-of-sample sets.
 
     Args:
-        excess_returns (pd.DataFrame): DataFrame containing excess returns with a 'Date' column.
-        forward_rates (pd.DataFrame): DataFrame containing forward rates with a 'Date' column.
-        split_date (str): The start date for the out-of-sample period, in "YYYY-MM-DD" format.
-        end_date (str): The end date for the out-of-sample period, in "YYYY-MM-DD" format.
+        excess_returns (pd.DataFrame): DataFrame with a 'Date' column.
+        forward_rates (pd.DataFrame): DataFrame with a 'Date' column.
+        split_date: Start date for the out-of-sample period.
+        end_date: End date for the out-of-sample period.
+        macro_data (pd.DataFrame, optional): DataFrame with a 'Date' column.
 
     Returns:
-        dict: A dictionary containing in-sample and out-of-sample data for both excess_returns and forward_rates.
+        dict: Dictionary containing in-sample and out-of-sample datasets.
     """
+    in_er = excess_returns.loc[excess_returns["Date"] < split_date].copy()
+    out_er = excess_returns.loc[(excess_returns["Date"] >= split_date) & 
+                                (excess_returns["Date"] <= end_date)].copy()
 
-    # Split excess_returns
-    excess_returns_insample = excess_returns.loc[excess_returns["Date"] < split_date]
-    excess_returns_oos = excess_returns.loc[
-        (excess_returns["Date"] >= split_date) & (excess_returns["Date"] <= end_date)
-    ]
+    in_fr = forward_rates.loc[forward_rates["Date"] < split_date].copy()
+    out_fr = forward_rates.loc[(forward_rates["Date"] >= split_date) & 
+                               (forward_rates["Date"] <= end_date)].copy()
 
-    # Split forward_rates
-    forward_rates_insample = forward_rates.loc[forward_rates["Date"] < split_date]
-    forward_rates_oos = forward_rates.loc[
-        (forward_rates["Date"] >= split_date) & (forward_rates["Date"] <= end_date)
-    ]
+    if macro_data is not None:
+        in_macro = macro_data.loc[macro_data["Date"] < split_date].copy()
+        out_macro = macro_data.loc[(macro_data["Date"] >= split_date) & 
+                                   (macro_data["Date"] <= end_date)].copy()
+    else:
+        in_macro, out_macro = None, None
 
     return {
-        "excess_returns_insample": excess_returns_insample,
-        "excess_returns_oos": excess_returns_oos,
-        "forward_rates_insample": forward_rates_insample,
-        "forward_rates_oos": forward_rates_oos,
+        "excess_returns_in": in_er,
+        "excess_returns_out": out_er,
+        "forward_rates_in": in_fr,
+        "forward_rates_out": out_fr,
+        "macro_data_in": in_macro,
+        "macro_data_out": out_macro,
     }
 
-# Let's assume that this code is correct (for now)
-def iterative_pca_regression(excess_returns_insample, forward_rates_insample,
-                             excess_returns_oos, forward_rates_oos):
+def iterative_pca_regression(er_in: pd.DataFrame,
+                             fr_in: pd.DataFrame,
+                             er_out: pd.DataFrame,
+                             fr_out: pd.DataFrame,
+                             macro_in: pd.DataFrame = None,
+                             macro_out: pd.DataFrame = None,
+                             n_fwd_components: int = 3,
+                             n_macro_components: int = 8) -> pd.Series:
     """
-    Iteratively fits a regression on the first 3 principal components of the in-sample data,
-    predicts the next out-of-sample value, then updates the model with that new data point.
+    Performs iterative PCA regression with fixes:
+    - Uses IncrementalPCA to update PCA without full re-fit.
+    - Extracts predictions using flatten().
+    - Uses ignore_index when concatenating new samples.
     """
+    predictions = []
 
-    pred_values = []
+    # Prepare IncrementalPCA for macro data if provided.
+    if macro_in is not None:
+        macro_scaler = StandardScaler().fit(macro_in)
+        scaled_macro_in = macro_scaler.transform(macro_in)
+        pca_macro = IncrementalPCA(n_components=n_macro_components)
+        pca_macro.fit(scaled_macro_in)
+        macro_pcs_in = pca_macro.transform(scaled_macro_in)
+    else:
+        macro_pcs_in = None
 
+    # Incremental PCA for forward rates.
+    pca_fwd = IncrementalPCA(n_components=n_fwd_components)
+    pca_fwd.fit(fr_in)
+    pcs_fwd_in = pca_fwd.transform(fr_in)
 
-    # Define the number of components
-    n_components = 3
-    # Initial PCA on forward_rates_insample
-    pca = PCA(n_components)
-    pca_fit = pca.fit(forward_rates_insample)
-    pcs_insample = pca_fit.transform(forward_rates_insample)
-    y_insample = excess_returns_insample
+    # Combine forward and macro PCs as available.
+    X_in = np.hstack([pcs_fwd_in, macro_pcs_in]) if macro_pcs_in is not None else pcs_fwd_in
+    y_in = er_in.values
+    model = LinearRegression().fit(X_in, y_in)
 
+    # Iterate through out-of-sample observations.
+    for idx in range(len(er_out)):
+        # Transform current test sample for forward rates.
+        fr_test = fr_out.iloc[[idx]]
+        test_pcs_fwd = pca_fwd.transform(fr_test)
 
-    # Initial regression using LinearRegression
-    model = LinearRegression()
-    model.fit(pcs_insample, y_insample)
+        if macro_in is not None and macro_out is not None:
+            macro_test = macro_out.iloc[[idx]]
+            test_macro_scaled = macro_scaler.transform(macro_test)
+            test_pcs_macro = pca_macro.transform(test_macro_scaled)
+            X_test = np.hstack([test_pcs_fwd, test_pcs_macro])
+        else:
+            X_test = test_pcs_fwd
 
-    # Iteration loop
+        # Predict the new observation (flatten to avoid issues with shape).
+        prediction = model.predict(X_test).flatten()[0]
+        predictions.append(prediction)
 
-    
-    for i in range(len(excess_returns_oos)):
-        # Transform new out-of-sample forward rates with existing PCA loadings
-        test_pcs = pca_fit.transform(forward_rates_oos.iloc[[i]])
+        # Append new observation into in-sample datasets using ignore_index.
+        er_in = pd.concat([er_in, er_out.iloc[[idx]]], ignore_index=True)
+        fr_in = pd.concat([fr_in, fr_out.iloc[[idx]]], ignore_index=True)
+        if macro_in is not None and macro_out is not None:
+            macro_in = pd.concat([macro_in, macro_out.iloc[[idx]]], ignore_index=True)
 
-        # Predict and store as a scalar
-        pred = model.predict(test_pcs)[0][0]  # Extract the scalar value
-        pred_values.append(pred)
+        # Update IncrementalPCA with the new observation.
+        # For forward rates, update using the new sample.
+        pca_fwd.partial_fit(fr_out.iloc[[idx]])
+        pcs_fwd_in = pca_fwd.transform(fr_in)
 
-        # Add new data point to in-sample
-        y_new = excess_returns_oos.iloc[[i]]
-        X_new_fwd = forward_rates_oos.iloc[[i]]
+        if macro_in is not None:
+            # Refit scaler and update IncrementalPCA for macro data.
+            macro_scaler = StandardScaler().fit(macro_in)
+            scaled_macro_in = macro_scaler.transform(macro_in)
+            pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
+            macro_pcs_in = pca_macro.transform(scaled_macro_in)
+            X_in = np.hstack([pcs_fwd_in, macro_pcs_in])
+        else:
+            X_in = pcs_fwd_in
 
-        excess_returns_insample = pd.concat([excess_returns_insample, y_new])
-        forward_rates_insample = pd.concat([forward_rates_insample, X_new_fwd])
+        y_in = er_in.values
+        model.fit(X_in, y_in)
 
-        # Recompute PCA and re-fit model with the updated dataset
-        pca_fit = PCA(n_components).fit(forward_rates_insample) 
-        pcs_insample = pca_fit.transform(forward_rates_insample)
-        y_insample = excess_returns_insample
+    return pd.Series(predictions, index=er_out.index)
 
-        model = LinearRegression()
-        model.fit(pcs_insample, y_insample)
-
-    # Convert predictions to a pandas Series
-    return pd.Series(pred_values, index=excess_returns_oos.index)
-
-if __name__ == "__main__":
-    # Load the data on forward rates and excess returns
+def main(n_fwd_components: int, use_macro: bool):
+    # Load datasets.
     forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
-    xr = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx") 
+    excess_returns = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
+    macro_data = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx")  # Example path
 
+    # Define out-of-sample period.
     start_oos = "1990-01-01"
-    end_oos = "2018-12-01" # Keep it consistent with Bianchi
+    end_oos = "2018-12-01"
 
-    # Convert start_oos to datetime
-    start_oos_date = pd.to_datetime(start_oos)
-    end_oos_date = pd.to_datetime(end_oos)
-
-    # Extract insample and oos data into a dictionary
-    dic = split_data_by_date(xr, forward_rates, start_oos_date, end_oos_date)
-
-    for key in [
-        "excess_returns_insample",
-        "excess_returns_oos",
-        "forward_rates_insample",
-        "forward_rates_oos",
-    ]:
-        dic[key] = dic[key].drop(columns="Date")
+    # Convert 'Date' columns to datetime.
+    for df in [forward_rates, excess_returns, macro_data]:
+        df["Date"] = pd.to_datetime(df["Date"])
     
+    # Lag macro data if using it.
+    if use_macro:
+        macro_data = macro_data.sort_values("Date").copy()
+        # Lag all columns except the Date column by one period.
+        macro_cols = macro_data.columns.difference(["Date"])
+        macro_data[macro_cols] = macro_data[macro_cols].shift(1)
+        macro_data = macro_data.dropna().reset_index(drop=True)
 
-    excess_returns_insample = dic["excess_returns_insample"]
-    excess_returns_oos = dic["excess_returns_oos"]
-    forward_rates_insample = dic["forward_rates_insample"]
-    forward_rates_oos = dic["forward_rates_oos"]
+    # Use macro data only if flagged.
+    macro_for_split = macro_data if use_macro else None
 
-    # List of column names to iterate over
+    # Split data into in-sample and out-of-sample.
+    data_split = split_data_by_date(excess_returns, forward_rates, start_oos, end_oos, macro_data=macro_for_split)
+    
+    # Drop the 'Date' column.
+    for key in data_split:
+        if data_split[key] is not None:
+            data_split[key] = data_split[key].drop(columns="Date")
+    
+    # If using macro data, align the datasets by truncating to the minimum length.
+    if use_macro and data_split["macro_data_in"] is not None:
+        min_in = min(len(data_split["excess_returns_in"]),
+                     len(data_split["forward_rates_in"]),
+                     len(data_split["macro_data_in"]))
+        data_split["excess_returns_in"] = data_split["excess_returns_in"].iloc[:min_in]
+        data_split["forward_rates_in"] = data_split["forward_rates_in"].iloc[:min_in]
+        data_split["macro_data_in"] = data_split["macro_data_in"].iloc[:min_in]
+    if use_macro and data_split["macro_data_out"] is not None:
+        min_out = min(len(data_split["excess_returns_out"]),
+                      len(data_split["forward_rates_out"]),
+                      len(data_split["macro_data_out"]))
+        data_split["excess_returns_out"] = data_split["excess_returns_out"].iloc[:min_out]
+        data_split["forward_rates_out"] = data_split["forward_rates_out"].iloc[:min_out]
+        data_split["macro_data_out"] = data_split["macro_data_out"].iloc[:min_out]
+
+    er_in = data_split["excess_returns_in"]
+    er_out = data_split["excess_returns_out"]
+    fr_in = data_split["forward_rates_in"]
+    fr_out = data_split["forward_rates_out"]
+    macro_in = data_split["macro_data_in"]
+    macro_out = data_split["macro_data_out"]
+
+    # List of columns to predict.
     columns_to_predict = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
-
-    # Dictionary to store predictions for each column
     predictions = {}
 
+    for col in columns_to_predict:
+        print(f"Running iterative PCA regression for column: {col}")
+        er_in_col = er_in[[col]].copy()
+        er_out_col = er_out[[col]].copy()
 
-    # Run iterative PCA regression for each column
-    for column in columns_to_predict:
-        print(f"Running iterative PCA regression for column: {column}")
-
-        # Extract the specific column for in-sample and out-of-sample excess returns
-        excess_returns_insample_col = excess_returns_insample[[column]]
-        excess_returns_oos_col = excess_returns_oos[[column]]
-
-        # Run the regression
-        pred_values = iterative_pca_regression(
-            excess_returns_insample_col,
-            forward_rates_insample,
-            excess_returns_oos_col,
-            forward_rates_oos,
+        pred = iterative_pca_regression(
+            er_in_col,
+            fr_in.copy(),
+            er_out_col,
+            fr_out.copy(),
+            macro_in=macro_in.copy() if macro_in is not None else None,
+            macro_out=macro_out.copy() if macro_out is not None else None,
+            n_fwd_components=n_fwd_components,
+            n_macro_components=8  # Macro components are fixed at 8
         )
+        predictions[col] = pred
 
-        # Store the predictions
-        predictions[column] = pred_values
+    # Compute benchmark predictions.
+    benchmark_preds = compute_benchmark_prediction(er_in, er_out)
 
-    
-    ## Compute the out-of-sample R2
-    # Compute benchmark predictions
-    benchmark_predictions = compute_benchmark_prediction(
-        excess_returns_insample, excess_returns_oos)
+    # Report out-of-sample R2 for each column.
+    for col in predictions:
+        r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
+        print(f"Out-of-sample R2 for {col}: {r2_value}")
 
-    
-    for key in predictions.keys():
-        print(f"Out-of-sample R2 for {key}: {r2_oos(excess_returns_oos[key], predictions[key], benchmark_predictions[key])}")
-
-        
-    """
-    # Plotting and exporting the predictions
-
-    import matplotlib.pyplot as plt
-
-    # === Export predictions to Excel ===
-    pred_df = pd.DataFrame(predictions)
-    pred_df.index = excess_returns_oos.index
-    pred_df.to_excel("pca_predictions.xlsx")
-    print("\nPredictions saved to pca_predictions.xlsx")
-
-    # === Plot predictions vs true values ===
-    for column in columns_to_predict:
-        plt.figure(figsize=(10, 5))
-        plt.plot(excess_returns_oos.index, excess_returns_oos[column], label="True", linewidth=1.5)
-        plt.plot(pred_df.index, pred_df[column], label="Predicted", linestyle="--")
-        plt.title(f"PCA Forecast vs Actual - {column}")
-        plt.xlabel("Date")
-        plt.ylabel("Excess Return")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-    """
-
+if __name__ == "__main__":
+    # Directly call main with desired parameters.
+    main(n_fwd_components=10, use_macro=True)
