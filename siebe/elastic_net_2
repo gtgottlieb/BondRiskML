@@ -120,3 +120,28 @@ for i, col in enumerate(maturities):
     expanding_mean_for_maturity =  expanding_mean_df[col].iloc[0:len(y_true)].values
     r2 = R2OOS(y_true, y_forecast, expanding_mean_for_maturity)
     print(f"{col}: {r2:.4f}")
+
+"""
+# Plotting and exporting predictions
+# === Save predictions to Excel ===
+predictions_df = pd.DataFrame(y_preds, index=df.index, columns=maturities)
+predictions_df = predictions_df.iloc[start_oos_idx:]  # only save OOS forecasts
+output_file = "elastic_net_predictions.xlsx"
+predictions_df.to_excel(output_file)
+print(f"\nPredictions saved to {output_file}")
+
+import matplotlib.pyplot as plt
+
+# === Plot predictions vs true values ===
+for i, col in enumerate(maturities):
+    plt.figure(figsize=(10, 5))
+    plt.plot(df.index[start_oos_idx:], Y[start_oos_idx:, i], label="True", linewidth=1.5)
+    plt.plot(df.index[start_oos_idx:], y_preds[start_oos_idx:, i], label="Predicted", linestyle="--")
+    plt.title(f"Elastic Net Forecast vs Actual - {col}")
+    plt.xlabel("Date")
+    plt.ylabel("Excess Return")
+    plt.legend()
+    plt.tight_layout()
+    plt.grid(True)
+    plt.show()
+"""

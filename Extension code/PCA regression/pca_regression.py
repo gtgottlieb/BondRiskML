@@ -154,4 +154,30 @@ if __name__ == "__main__":
     
     for key in predictions.keys():
         print(f"Out-of-sample R2 for {key}: {r2_oos(excess_returns_oos[key], predictions[key], benchmark_predictions[key])}")
-    
+
+        
+    """
+    # Plotting and exporting the predictions
+
+    import matplotlib.pyplot as plt
+
+    # === Export predictions to Excel ===
+    pred_df = pd.DataFrame(predictions)
+    pred_df.index = excess_returns_oos.index
+    pred_df.to_excel("pca_predictions.xlsx")
+    print("\nPredictions saved to pca_predictions.xlsx")
+
+    # === Plot predictions vs true values ===
+    for column in columns_to_predict:
+        plt.figure(figsize=(10, 5))
+        plt.plot(excess_returns_oos.index, excess_returns_oos[column], label="True", linewidth=1.5)
+        plt.plot(pred_df.index, pred_df[column], label="Predicted", linestyle="--")
+        plt.title(f"PCA Forecast vs Actual - {column}")
+        plt.xlabel("Date")
+        plt.ylabel("Excess Return")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+    """
+
