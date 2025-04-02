@@ -5,6 +5,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
+from bayesian_shrinkage import bayesian_shrinkage
+import matplotlib.pyplot as plt
+
 
 def split_data_by_date(excess_returns: pd.DataFrame,
                        forward_rates: pd.DataFrame,
@@ -210,9 +213,36 @@ def main(n_fwd_components: int, use_macro: bool):
 
     # Report out-of-sample R2 for each column.
     for col in predictions:
+
+
+        # Extract the oos date
+        dates = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", usecols=["Date"])["Date"]
+        dates = pd.to_datetime(dates)
+        mask = (dates >= pd.to_datetime("1990-01-01")) & (dates <= pd.to_datetime("2018-12-01"))
+        dates = dates.loc[mask].reset_index(drop=True)
+
+        # Plot the predictions vs benchmark vs actuals for each column.
+        plt.figure(figsize=(10, 6))
+        plt.plot(dates, er_out[col].values, linestyle='--', label="Actual")
+        plt.plot(dates, predictions[col].values, linestyle='-.', label="PCA Predictions")
+        plt.plot(dates, benchmark_preds[col].values, linestyle='-', label="Benchmark")
+        plt.title(f"Out-of-Sample Comparison for {col}")
+        plt.xlabel("Date")
+        plt.ylabel("Return Values")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+       
+        
+        # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
         print(f"Out-of-sample R2 for {col}: {r2_value}")
 
+        # Compute model Roos with Bayesian shrinkage
+        bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
+        r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
+        print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
+
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=10, use_macro=True)
+    main(n_fwd_components=3, use_macro=False)
