@@ -77,7 +77,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
         if macro_in is not None:
             # Refit scaler and update IncrementalPCA for macro data.
-            macro_scaler = StandardScaler().fit(macro_in)
+            #macro_scaler = StandardScaler().fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
             pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
@@ -90,23 +90,16 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
     return pd.Series(predictions, index=er_out.index)
 
+
 def main(n_fwd_components: int, use_macro: bool):
     # Load datasets.
     forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
     macro_data = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx") 
 
-    # Sort by Date and shift all columns (except Date) by one row to lag by one month.
-    macro_data.sort_values("Date", inplace=True)
-    macro_data.iloc[:, 1:] = macro_data.iloc[:, 1:].shift(1)
-    
-    
-    # Drop the first row of NaNs created by shifting.
-    macro_data.dropna(inplace=True)
-
     # Define out-of-sample period.
     start_oos = "1990-01-01"
-    end_oos = "2018-12-01"
+    end_oos = "2023-11-01"
 
     # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
@@ -123,21 +116,6 @@ def main(n_fwd_components: int, use_macro: bool):
         if data_split[key] is not None:
             data_split[key] = data_split[key].drop(columns="Date")
     
-    # If using macro data, align the datasets by truncating to the minimum length.
-    if use_macro and data_split["macro_data_in"] is not None:
-        min_in = min(len(data_split["excess_returns_in"]),
-                     len(data_split["forward_rates_in"]),
-                     len(data_split["macro_data_in"]))
-        data_split["excess_returns_in"] = data_split["excess_returns_in"].iloc[:min_in]
-        data_split["forward_rates_in"] = data_split["forward_rates_in"].iloc[:min_in]
-        data_split["macro_data_in"] = data_split["macro_data_in"].iloc[:min_in]
-    if use_macro and data_split["macro_data_out"] is not None:
-        min_out = min(len(data_split["excess_returns_out"]),
-                      len(data_split["forward_rates_out"]),
-                      len(data_split["macro_data_out"]))
-        data_split["excess_returns_out"] = data_split["excess_returns_out"].iloc[:min_out]
-        data_split["forward_rates_out"] = data_split["forward_rates_out"].iloc[:min_out]
-        data_split["macro_data_out"] = data_split["macro_data_out"].iloc[:min_out]
 
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
@@ -173,11 +151,11 @@ def main(n_fwd_components: int, use_macro: bool):
     # Report out-of-sample R2 for each column.
     for col in predictions:
 
-        '''
+        
         # Extract the oos date
         dates = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
-        mask = (dates >= pd.to_datetime("1990-01-01")) & (dates <= pd.to_datetime("2018-12-01"))
+        mask = (dates >= start_oos) & (dates <= end_oos)
         dates = dates.loc[mask].reset_index(drop=True)
 
         # Plot the predictions vs benchmark vs actuals for each column.
@@ -191,7 +169,7 @@ def main(n_fwd_components: int, use_macro: bool):
         plt.legend()
         plt.grid(True)
         plt.show()
-        '''
+        
         
         # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
@@ -201,7 +179,9 @@ def main(n_fwd_components: int, use_macro: bool):
         bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
+
+
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=10, use_macro=True)
+    main(n_fwd_components=3, use_macro=True)

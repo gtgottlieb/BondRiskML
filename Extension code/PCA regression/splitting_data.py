@@ -7,7 +7,8 @@ def split_data_by_date(excess_returns: pd.DataFrame,
                        macro_data: pd.DataFrame = None) -> dict:
     """
     Splits excess returns, forward rates, and optionally macro data into 
-    in-sample and out-of-sample sets.
+    in-sample and out-of-sample sets. For macro_data, the variables are lagged
+    by one period (all columns except the 'Date' column).
 
     Args:
         excess_returns (pd.DataFrame): DataFrame with a 'Date' column.
@@ -20,16 +21,16 @@ def split_data_by_date(excess_returns: pd.DataFrame,
         dict: Dictionary containing in-sample and out-of-sample datasets.
     """
     in_er = excess_returns.loc[excess_returns["Date"] < split_date].copy()
-    out_er = excess_returns.loc[(excess_returns["Date"] >= split_date) & 
+    out_er = excess_returns.loc[(excess_returns["Date"] >= split_date) &
                                 (excess_returns["Date"] <= end_date)].copy()
 
     in_fr = forward_rates.loc[forward_rates["Date"] < split_date].copy()
-    out_fr = forward_rates.loc[(forward_rates["Date"] >= split_date) & 
+    out_fr = forward_rates.loc[(forward_rates["Date"] >= split_date) &
                                (forward_rates["Date"] <= end_date)].copy()
 
     if macro_data is not None:
         in_macro = macro_data.loc[macro_data["Date"] < split_date].copy()
-        out_macro = macro_data.loc[(macro_data["Date"] >= split_date) & 
+        out_macro = macro_data.loc[(macro_data["Date"] >= split_date) &
                                    (macro_data["Date"] <= end_date)].copy()
     else:
         in_macro, out_macro = None, None
