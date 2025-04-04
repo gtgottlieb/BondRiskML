@@ -1,92 +1,42 @@
 import pandas as pd
 import numpy as np
-from sklearn.decomposition import IncrementalPCA
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
 from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
 from splitting_data import split_data_by_date
 import matplotlib.pyplot as plt
 
-
-def iterative_pca_regression(er_in: pd.DataFrame,
-                             fr_in: pd.DataFrame,
-                             er_out: pd.DataFrame,
-                             fr_out: pd.DataFrame,
-                             macro_in: pd.DataFrame = None,
-                             macro_out: pd.DataFrame = None,
-                             n_fwd_components: int = 3,
-                             n_macro_components: int = 8) -> pd.Series:
+def iterative_rf_regression(er_in: pd.DataFrame,
+                            fr_in: pd.DataFrame,
+                            er_out: pd.DataFrame,
+                            fr_out: pd.DataFrame,
+                            macro_in: pd.DataFrame = None,
+                            macro_out: pd.DataFrame = None) -> pd.Series:
     """
-    Performs iterative PCA regression with fixes:
-    - Uses IncrementalPCA to update PCA without full re-fit.
-    - Extracts predictions using flatten().
-    - Uses ignore_index when concatenating new samples.
+    Performs iterative random forest regression.
+    At each iteration, the model is trained on the in-sample data using the first 10 forward rates as features,
+    then one prediction is generated for the current out‑of‑sample observation.
     """
     predictions = []
 
-    # Prepare IncrementalPCA for macro data if provided.
-    if macro_in is not None:
-        macro_scaler = StandardScaler().fit(macro_in)
-        scaled_macro_in = macro_scaler.transform(macro_in)
-        pca_macro = IncrementalPCA(n_components=n_macro_components)
-        pca_macro.fit(scaled_macro_in)
-        macro_pcs_in = pca_macro.transform(scaled_macro_in)
-    else:
-        macro_pcs_in = None
-
-    # Incremental PCA for forward rates.
-    pca_fwd = IncrementalPCA(n_components=n_fwd_components)
-    pca_fwd.fit(fr_in)
-    pcs_fwd_in = pca_fwd.transform(fr_in)
-
-    # Combine forward and macro PCs as available.
-    X_in = np.hstack([pcs_fwd_in, macro_pcs_in]) if macro_pcs_in is not None else pcs_fwd_in
-    y_in = er_in.values
-    model = LinearRegression().fit(X_in, y_in)
-
-    # Iterate through out-of-sample observations.
     for idx in range(len(er_out)):
-        # Transform current test sample for forward rates.
-        fr_test = fr_out.iloc[[idx]]
-        test_pcs_fwd = pca_fwd.transform(fr_test)
-
-        if macro_in is not None and macro_out is not None:
-            macro_test = macro_out.iloc[[idx]]
-            test_macro_scaled = macro_scaler.transform(macro_test)
-            test_pcs_macro = pca_macro.transform(test_macro_scaled)
-            X_test = np.hstack([test_pcs_fwd, test_pcs_macro])
-        else:
-            X_test = test_pcs_fwd
-
-        # Predict the new observation (flatten to avoid issues with shape).
-        prediction = model.predict(X_test).flatten()[0]
-        predictions.append(prediction)
-
-        # Append new observation into in-sample datasets using ignore_index.
+        # Use the first 10 forward rates as features.
+        X_train = fr_in.iloc[:, :10]
+        y_train = er_in.values.ravel()
+        
+        # Initialize and train the random forest model.
+        rf = RandomForestRegressor(random_state=42)
+        rf.fit(X_train, y_train)
+        
+        # Select the corresponding test observation (first 10 features).
+        X_test = fr_out.iloc[[idx], :10]
+        pred = rf.predict(X_test)[0]
+        predictions.append(pred)
+        
+        # Append the new observation into the in-sample datasets.
         er_in = pd.concat([er_in, er_out.iloc[[idx]]], ignore_index=True)
         fr_in = pd.concat([fr_in, fr_out.iloc[[idx]]], ignore_index=True)
-        if macro_in is not None and macro_out is not None:
-            macro_in = pd.concat([macro_in, macro_out.iloc[[idx]]], ignore_index=True)
-
-        # Update IncrementalPCA with the new observation.
-        # For forward rates, update using the new sample.
-        pca_fwd.partial_fit(fr_out.iloc[[idx]])
-        pcs_fwd_in = pca_fwd.transform(fr_in)
-
-        if macro_in is not None:
-            # Refit scaler and update IncrementalPCA for macro data.
-            macro_scaler = StandardScaler().fit(macro_in)
-            scaled_macro_in = macro_scaler.transform(macro_in)
-            pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
-            macro_pcs_in = pca_macro.transform(scaled_macro_in)
-            X_in = np.hstack([pcs_fwd_in, macro_pcs_in])
-        else:
-            X_in = pcs_fwd_in
-
-        y_in = er_in.values
-        model.fit(X_in, y_in)
 
     return pd.Series(predictions, index=er_out.index)
 
@@ -99,7 +49,6 @@ def main(n_fwd_components: int, use_macro: bool):
     # Sort by Date and shift all columns (except Date) by one row to lag by one month.
     macro_data.sort_values("Date", inplace=True)
     macro_data.iloc[:, 1:] = macro_data.iloc[:, 1:].shift(1)
-    
     
     # Drop the first row of NaNs created by shifting.
     macro_data.dropna(inplace=True)
@@ -151,19 +100,17 @@ def main(n_fwd_components: int, use_macro: bool):
     predictions = {}
 
     for col in columns_to_predict:
-        print(f"Running iterative PCA regression for column: {col}")
+        print(f"Running iterative RF regression for column: {col}")
         er_in_col = er_in[[col]].copy()
         er_out_col = er_out[[col]].copy()
 
-        pred = iterative_pca_regression(
+        pred = iterative_rf_regression(
             er_in_col,
             fr_in.copy(),
             er_out_col,
             fr_out.copy(),
             macro_in=macro_in.copy() if macro_in is not None else None,
-            macro_out=macro_out.copy() if macro_out is not None else None,
-            n_fwd_components=n_fwd_components,
-            n_macro_components=8  # Macro components are fixed at 8
+            macro_out=macro_out.copy() if macro_out is not None else None
         )
         predictions[col] = pred
 
@@ -183,7 +130,7 @@ def main(n_fwd_components: int, use_macro: bool):
         # Plot the predictions vs benchmark vs actuals for each column.
         plt.figure(figsize=(10, 6))
         plt.plot(dates, er_out[col].values, linestyle='--', label="Actual")
-        plt.plot(dates, predictions[col].values, linestyle='-.', label="PCA Predictions")
+        plt.plot(dates, predictions[col].values, linestyle='-.', label="RF Predictions")
         plt.plot(dates, benchmark_preds[col].values, linestyle='-', label="Benchmark")
         plt.title(f"Out-of-Sample Comparison for {col}")
         plt.xlabel("Date")
@@ -204,4 +151,4 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=10, use_macro=True)
+    main(n_fwd_components=10, use_macro=False)
