@@ -21,16 +21,15 @@ def iterative_rf_regression(er_in: pd.DataFrame,
     predictions = []
 
     for idx in range(len(er_out)):
-        # Use the first 10 forward rates as features.
-        X_train = fr_in.iloc[:, :10]
-        y_train = er_in.values.ravel()
+        X_train = fr_in
+        y_train = er_in
         
         # Initialize and train the random forest model.
         rf = RandomForestRegressor(random_state=42)
         rf.fit(X_train, y_train)
         
-        # Select the corresponding test observation (first 10 features).
-        X_test = fr_out.iloc[[idx], :10]
+        # Select the corresponding test observation
+        X_test = fr_out.iloc[[idx]]
         pred = rf.predict(X_test)[0]
         predictions.append(pred)
         
@@ -45,13 +44,8 @@ def main(n_fwd_components: int, use_macro: bool):
     forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
     macro_data = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx") 
-
-    # Sort by Date and shift all columns (except Date) by one row to lag by one month.
-    macro_data.sort_values("Date", inplace=True)
-    macro_data.iloc[:, 1:] = macro_data.iloc[:, 1:].shift(1)
     
-    # Drop the first row of NaNs created by shifting.
-    macro_data.dropna(inplace=True)
+    
 
     # Define out-of-sample period.
     start_oos = "1990-01-01"

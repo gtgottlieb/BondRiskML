@@ -77,7 +77,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
         if macro_in is not None:
             # Refit scaler and update IncrementalPCA for macro data.
-            #macro_scaler = StandardScaler().fit(macro_in)
+            macro_scaler = StandardScaler().fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
             pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
@@ -119,6 +119,8 @@ def main(n_fwd_components: int, use_macro: bool):
 
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
+    realized = er_out.copy() # For computing IR
+    #er_out.to_excel("data-folder/realized_xr.xlsx", index=False)
     fr_in = data_split["forward_rates_in"]
     fr_out = data_split["forward_rates_out"]
     macro_in = data_split["macro_data_in"]
@@ -149,9 +151,12 @@ def main(n_fwd_components: int, use_macro: bool):
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
 
     # Report out-of-sample R2 for each column.
+
+    # Store all predictions  
+    bayes_df = pd.DataFrame()
     for col in predictions:
 
-        
+        ''' # Uncomment to plot the predictions
         # Extract the oos date
         dates = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
@@ -169,7 +174,7 @@ def main(n_fwd_components: int, use_macro: bool):
         plt.legend()
         plt.grid(True)
         plt.show()
-        
+        '''
         
         # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
@@ -177,6 +182,7 @@ def main(n_fwd_components: int, use_macro: bool):
 
         # Compute model Roos with Bayesian shrinkage
         bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
+        bayes_df[col] = bayes_preds # For saving the predictions
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
@@ -184,4 +190,4 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=3, use_macro=True)
+    main(n_fwd_components=10, use_macro=True)
