@@ -156,7 +156,7 @@ def main(n_fwd_components: int, use_macro: bool):
     bayes_df = pd.DataFrame()
     for col in predictions:
 
-        ''' # Uncomment to plot the predictions
+        # Uncomment to plot the predictions
         # Extract the oos date
         dates = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
@@ -174,7 +174,7 @@ def main(n_fwd_components: int, use_macro: bool):
         plt.legend()
         plt.grid(True)
         plt.show()
-        '''
+        
         
         # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
@@ -190,4 +190,4 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=10, use_macro=True)
+    main(n_fwd_components=3, use_macro=True)

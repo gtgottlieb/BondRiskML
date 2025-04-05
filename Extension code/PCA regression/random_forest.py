@@ -1,55 +1,97 @@
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from sklearn.decomposition import IncrementalPCA
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
-from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
+from compute_benchmark import compute_benchmark_prediction
 from splitting_data import split_data_by_date
-import matplotlib.pyplot as plt
 
 def iterative_rf_regression(er_in: pd.DataFrame,
-                            fr_in: pd.DataFrame,
-                            er_out: pd.DataFrame,
-                            fr_out: pd.DataFrame,
-                            macro_in: pd.DataFrame = None,
-                            macro_out: pd.DataFrame = None) -> pd.Series:
+                             fr_in: pd.DataFrame,
+                             er_out: pd.DataFrame,
+                             fr_out: pd.DataFrame,
+                             macro_in: pd.DataFrame = None,
+                             macro_out: pd.DataFrame = None,
+                             n_macro_components: int = 8) -> pd.Series:
     """
-    Performs iterative random forest regression.
-    At each iteration, the model is trained on the in-sample data using the first 10 forward rates as features,
-    then one prediction is generated for the current out‑of‑sample observation.
+    Performs iterative PCA regression with RandomForestClassifier and grid search.
     """
     predictions = []
 
+    # Prepare IncrementalPCA for macro data if provided.
+    if macro_in is not None:
+        macro_scaler = StandardScaler().fit(macro_in)
+        scaled_macro_in = macro_scaler.transform(macro_in)
+        pca_macro = IncrementalPCA(n_components=n_macro_components)
+        pca_macro.fit(scaled_macro_in)
+        macro_pcs_in = pca_macro.transform(scaled_macro_in)
+    else:
+        macro_pcs_in = None
+
+
+    # Combine forward and macro PCs as available.
+    X_in = np.hstack([fr_in, macro_pcs_in]) if macro_pcs_in is not None else fr_in
+    y_in = er_in.values.flatten()
+
+    
+    rf = RandomForestRegressor(random_state=42, n_jobs=-1)
+    rf.fit(X_in, y_in)
+
+    # Iterate through out-of-sample observations.
     for idx in range(len(er_out)):
-        X_train = fr_in
-        y_train = er_in
-        
-        # Initialize and train the random forest model.
-        rf = RandomForestRegressor(random_state=42)
-        rf.fit(X_train, y_train)
-        
-        # Select the corresponding test observation
-        X_test = fr_out.iloc[[idx]]
-        pred = rf.predict(X_test)[0]
-        predictions.append(pred)
-        
-        # Append the new observation into the in-sample datasets.
+        # Transform current test sample for forward rates.
+        fr_test = fr_out.iloc[[idx]]
+
+        if macro_in is not None and macro_out is not None:
+            macro_test = macro_out.iloc[[idx]]
+            test_macro_scaled = macro_scaler.transform(macro_test)
+            test_pcs_macro = pca_macro.transform(test_macro_scaled)
+            X_test = np.hstack([fr_test, test_pcs_macro])
+        else:
+            X_test = fr_test
+
+        # Predict the new observation.
+        prediction = rf.predict(X_test)[0]
+        predictions.append(prediction)
+
+        # Append new observation into in-sample datasets using ignore_index.
         er_in = pd.concat([er_in, er_out.iloc[[idx]]], ignore_index=True)
         fr_in = pd.concat([fr_in, fr_out.iloc[[idx]]], ignore_index=True)
+        if macro_in is not None and macro_out is not None:
+            macro_in = pd.concat([macro_in, macro_out.iloc[[idx]]], ignore_index=True)
+        
+
+        if macro_in is not None:
+            # Refit scaler and update IncrementalPCA for macro data.
+            macro_scaler = StandardScaler().fit(macro_in)
+            scaled_macro_in = macro_scaler.transform(macro_in)
+            pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
+            macro_pcs_in = pca_macro.transform(scaled_macro_in)
+            X_in = np.hstack([fr_in, macro_pcs_in])
+        else:
+            X_in = fr_in
+
+        y_in = er_in.values.flatten()
+
+        # Retrain model with updated in-sample data.
+        if idx >= 11:
+            rf.fit(X_in[:-11], y_in[:-11])
+        #rf.fit(X_in, y_in) -> Can't refit with the current period, becasue it uses overlapping returns!!!
 
     return pd.Series(predictions, index=er_out.index)
 
-def main(n_fwd_components: int, use_macro: bool):
+def main(use_macro: bool):
     # Load datasets.
     forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
     macro_data = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx") 
-    
-    
 
     # Define out-of-sample period.
     start_oos = "1990-01-01"
-    end_oos = "2018-12-01"
+    end_oos = "2023-11-01"
 
     # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
@@ -66,24 +108,11 @@ def main(n_fwd_components: int, use_macro: bool):
         if data_split[key] is not None:
             data_split[key] = data_split[key].drop(columns="Date")
     
-    # If using macro data, align the datasets by truncating to the minimum length.
-    if use_macro and data_split["macro_data_in"] is not None:
-        min_in = min(len(data_split["excess_returns_in"]),
-                     len(data_split["forward_rates_in"]),
-                     len(data_split["macro_data_in"]))
-        data_split["excess_returns_in"] = data_split["excess_returns_in"].iloc[:min_in]
-        data_split["forward_rates_in"] = data_split["forward_rates_in"].iloc[:min_in]
-        data_split["macro_data_in"] = data_split["macro_data_in"].iloc[:min_in]
-    if use_macro and data_split["macro_data_out"] is not None:
-        min_out = min(len(data_split["excess_returns_out"]),
-                      len(data_split["forward_rates_out"]),
-                      len(data_split["macro_data_out"]))
-        data_split["excess_returns_out"] = data_split["excess_returns_out"].iloc[:min_out]
-        data_split["forward_rates_out"] = data_split["forward_rates_out"].iloc[:min_out]
-        data_split["macro_data_out"] = data_split["macro_data_out"].iloc[:min_out]
 
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
+    #realized = er_out.copy() # For computing IR
+    #er_out.to_excel("data-folder/realized_xr.xlsx", index=False)
     fr_in = data_split["forward_rates_in"]
     fr_out = data_split["forward_rates_out"]
     macro_in = data_split["macro_data_in"]
@@ -94,7 +123,7 @@ def main(n_fwd_components: int, use_macro: bool):
     predictions = {}
 
     for col in columns_to_predict:
-        print(f"Running iterative RF regression for column: {col}")
+        print(f"Running iterative random forest regression for column: {col}")
         er_in_col = er_in[[col]].copy()
         er_out_col = er_out[[col]].copy()
 
@@ -104,7 +133,8 @@ def main(n_fwd_components: int, use_macro: bool):
             er_out_col,
             fr_out.copy(),
             macro_in=macro_in.copy() if macro_in is not None else None,
-            macro_out=macro_out.copy() if macro_out is not None else None
+            macro_out=macro_out.copy() if macro_out is not None else None,
+            n_macro_components=8  # Macro components are fixed at 8
         )
         predictions[col] = pred
 
@@ -112,19 +142,22 @@ def main(n_fwd_components: int, use_macro: bool):
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
 
     # Report out-of-sample R2 for each column.
+
+    # Store all predictions  
+    bayes_df = pd.DataFrame()
     for col in predictions:
 
-        '''
+        # Uncomment to plot the predictions
         # Extract the oos date
         dates = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
-        mask = (dates >= pd.to_datetime("1990-01-01")) & (dates <= pd.to_datetime("2018-12-01"))
+        mask = (dates >= start_oos) & (dates <= end_oos)
         dates = dates.loc[mask].reset_index(drop=True)
 
         # Plot the predictions vs benchmark vs actuals for each column.
         plt.figure(figsize=(10, 6))
         plt.plot(dates, er_out[col].values, linestyle='--', label="Actual")
-        plt.plot(dates, predictions[col].values, linestyle='-.', label="RF Predictions")
+        plt.plot(dates, predictions[col].values, linestyle='-.', label="PCA Predictions")
         plt.plot(dates, benchmark_preds[col].values, linestyle='-', label="Benchmark")
         plt.title(f"Out-of-Sample Comparison for {col}")
         plt.xlabel("Date")
@@ -132,7 +165,6 @@ def main(n_fwd_components: int, use_macro: bool):
         plt.legend()
         plt.grid(True)
         plt.show()
-        '''
         
         # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
@@ -140,9 +172,12 @@ def main(n_fwd_components: int, use_macro: bool):
 
         # Compute model Roos with Bayesian shrinkage
         bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
+        bayes_df[col] = bayes_preds # For saving the predictions
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
+
+
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=10, use_macro=False)
+    main(use_macro=False)
