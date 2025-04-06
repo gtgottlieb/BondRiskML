@@ -26,7 +26,7 @@ def calculate_expanding_mean_df(Y, dates, maturities, start_date):
     expanding_means = np.full_like(Y, np.nan, dtype=np.float64)
     
     for t in range(n_obs):
-        expanding_means[t, :] = np.mean(Y[:t + 1, :], axis=0)
+        expanding_means[t, :] = np.mean(Y[:t, :], axis=0)
         
     df_expanding = pd.DataFrame(expanding_means, columns=maturities, index=dates)
     df_expanding = df_expanding.reset_index().rename(columns={'index': 'date'})
@@ -123,7 +123,7 @@ print("Running Elastic Net with expanding window...\n")
 
 # === Run expanding window forecasts ===
 for t in range(oos_start_idx, n_obs):
-    y_preds[t, :] = forecast_with_elasticnet(Xexog[:t + 1, :], Y[:t + 1, :])
+    y_preds[t, :] = forecast_with_elasticnet(Xexog[:t, :], Y[:t, :])
     forecast_num = t - oos_start_idx + 1
     total_forecasts = n_obs - oos_start_idx
     print(f"Forecast {forecast_num}/{total_forecasts} ({df.index[t].strftime('%Y-%m')})")
