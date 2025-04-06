@@ -1,22 +1,25 @@
 import pandas as pd
 import numpy as np
-import Data_preprocessing as data_prep
+#import Data_preprocessing as data_prep
 from sklearn.preprocessing import MinMaxScaler
+import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Input
-from keras.optimizers import SGD
+from tensorflow.keras.optimizers import SGD
 import Roos
-import compute_benchmark 
+import compute_benchmark
 import ModelComparison_Rolling
 
 ## Upload and allign data
 
 # Import yield and macro data, set in dataframe format with 'Date' column 
-yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
-forward_rates, xr = data_prep.process_yield_data(yields_df)
+#forward_rates, xr = data_prep.process_yield_data(yields_df)
+forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
+xr = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
+
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
 
-macro_df = pd.read_csv('/Users/avril/Desktop/Seminar/Data/FRED-MD monthly 2024-12.csv')
+macro_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx")
 macro_df = macro_df.drop(index=0) # Drop "Transform" row
 macro_df = macro_df.rename(columns={'sasdate':'Date'})
 macro_df['Date'] = pd.to_datetime(macro_df['Date'])
@@ -65,7 +68,7 @@ for i in range(oos_start_index, T):
 
     # Set up model
     model = Model(inputs=input_layer, outputs=output_layer)
-    sgd_optimizer = SGD(learning_rate=0.015, momentum=0.9, decay=0.01, nesterov=True)
+    sgd_optimizer = SGD(learning_rate=0.015, momentum=0.9, nesterov=True)
     model.compile(optimizer=sgd_optimizer, loss='mse')
 
     # Fit model and get predictions
@@ -79,19 +82,28 @@ all_Y_pred = np.array(all_Y_pred)
 all_Y_test = np.array(all_Y_test)
 
 ## Compute performance measures
-Y_bench = compute_benchmark.compute_benchmark_prediction(xr_insample=Y[:oos_start_index], xr_oos=Y[oos_start_index:T])
+xr_insample_df = xr_df.drop(columns='Date').iloc[:oos_start_index]
+xr_oos_df = xr_df.drop(columns='Date').iloc[oos_start_index:T]
+
+Y_bench = compute_benchmark.compute_benchmark_prediction(
+    xr_insample=xr_insample_df, 
+    xr_oos=xr_oos_df
+)
 Y_bench = np.array(Y_bench)
 all_R2_oos = {}
 
 print("Calculation based on Campbell and Thompson (2008)")
 for maturity in range(Y.shape[1]):
-    r2_oos = Roos.r2_oos(actual=all_Y_test[:, maturity], predicted=all_Y_pred[:, maturity], benchmark=Y_bench)
+    r2_oos = Roos.r2_oos(actual=all_Y_test[:, maturity], predicted=all_Y_pred[:, maturity], benchmark=Y_bench[:, maturity])
     all_R2_oos[f"Maturity {maturity + 1}"] = r2_oos
     print(f"OOS R^2 Score for Maturity {maturity + 1}: {r2_oos:.4f}")
 
 all_R2_oos = {}
+
+"""
 print("Package calculation")
 for maturity in range(Y.shape[1]):
     r2_oos = ModelComparison_Rolling.R2OOS(y_true=all_Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
     all_R2_oos[f"Maturity {maturity + 1}"] = r2_oos
     print(f"OOS R^2 Score for Maturity {maturity + 1}: {r2_oos:.4f}")
+"""

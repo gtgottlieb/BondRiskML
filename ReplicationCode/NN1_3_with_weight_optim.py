@@ -4,12 +4,12 @@ import Data_preprocessing as data_prep
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 import ModelComparison_Rolling
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Input, Dropout
+from keras.models import Model
+from keras.layers import Dense, Input, Dropout
 from keras.optimizers import SGD
-from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.models import load_model
-from tensorflow.keras.regularizers import l1_l2
+from keras.models import load_model
+from keras.regularizers import l1_l2
+from keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import ParameterGrid
 
 
