@@ -14,12 +14,12 @@ import ModelComparison_Rolling
 
 # Import yield and macro data, set in dataframe format with 'Date' column 
 #forward_rates, xr = data_prep.process_yield_data(yields_df)
-forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
-xr = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
+forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx", engine='openpyxl')
+xr = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", engine='openpyxl')
 
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
 
-macro_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx")
+macro_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx", engine='openpyxl')
 macro_df = macro_df.drop(index=0) # Drop "Transform" row
 macro_df = macro_df.rename(columns={'sasdate':'Date'})
 macro_df['Date'] = pd.to_datetime(macro_df['Date'])
