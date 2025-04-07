@@ -113,10 +113,11 @@ for i in oos_iteration_indeces:
 all_Y_pred = np.vstack(all_Y_pred) 
 
 # Analyze model performance
-all_R2_oos = {}
 Y_test = Y[oos_start_index::re_estimation_freq,:]
 
-for maturity in range(Y.shape[1]):
+for maturity in range(1,Y.shape[1]):
     r2_oos = ModelComparison_Rolling.R2OOS(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
-    all_R2_oos[f"Maturity {maturity + 1}"] = r2_oos
     print(f"OOS R^2 Score for Maturity {maturity + 1}: {r2_oos:.4f}")
+
+    r2_significance = ModelComparison_Rolling.RSZ_Signif(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
+    print(f"R^2 Significance for Maturity {maturity + 1}: {r2_significance:.4f}")
