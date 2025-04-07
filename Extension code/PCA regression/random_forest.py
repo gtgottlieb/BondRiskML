@@ -77,9 +77,9 @@ def iterative_rf_regression(er_in: pd.DataFrame,
         y_in = er_in.values.flatten()
 
         # Retrain model with updated in-sample data.
-        if idx >= 11:
-            rf.fit(X_in[:-11], y_in[:-11])
-        #rf.fit(X_in, y_in) -> Can't refit with the current period, becasue it uses overlapping returns!!!
+        #if idx >= 11:
+            #rf.fit(X_in[:-11], y_in[:-11])
+        rf.fit(X_in, y_in)  #Can't refit with the current period, becasue it uses overlapping returns!!!
 
     return pd.Series(predictions, index=er_out.index)
 

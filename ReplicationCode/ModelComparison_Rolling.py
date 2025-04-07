@@ -155,6 +155,7 @@ if __name__ == "__main__":
     # Load data
     forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx", engine='openpyxl')
     xr = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", engine='openpyxl')
+    xr.iloc[:, 1:] = xr.iloc[:, 1:].shift(-12)
     macro_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx", engine='openpyxl')
 
     # Clean macro data

@@ -190,4 +190,4 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=10, use_macro=True)
+    main(n_fwd_components=3, use_macro=False)

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import Data_preprocessing as data_prep
+#import Data_preprocessing as data_prep
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 import ModelComparison_Rolling
@@ -16,9 +16,8 @@ from sklearn.model_selection import ParameterGrid
 ## Upload and allign data
 
 # Import yield and macro data, set in dataframe format with 'Date' column 
-yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
-forward_rates, xr = data_prep.process_yield_data(yields_df)
-fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
+fwd_df = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx", engine='openpyxl')
+xr_df = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", engine='openpyxl')
 
 '''
 macro_df = pd.read_csv('/Users/avril/Desktop/Seminar/Data/FRED-MD monthly 2024-12.csv')
@@ -76,8 +75,8 @@ def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=50):
     model = Model(inputs=input_layer, outputs=output_layer)
 
     # Compile model
-    sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, decay=0.01, nesterov=True)
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc'
+    sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+    dumploc = '/Users/gtgot/Desktop/Seminar/Python Code/dumploc'
     mcp = ModelCheckpoint(dumploc+'/BestModel_'+str(no)+'.keras',
                               monitor='val_loss',save_best_only=False)
     model.compile(optimizer=sgd_optimizer, loss='mse')
