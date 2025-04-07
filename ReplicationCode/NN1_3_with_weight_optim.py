@@ -53,7 +53,7 @@ T = int(X.shape[0])
 
 ## Set up and fit NN(1 layer, 3 neurons) model
 
-def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=50):
+def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=500):
     X_train, Y_train = X[:-1,:], Y[:-1,:] 
     X_test = X[-1,:].reshape(1,-1)
 
@@ -76,7 +76,7 @@ def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=50):
 
     # Compile model
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
-    dumploc = '/Users/gtgot/Desktop/Seminar/Python Code/dumploc'
+    dumploc = './trainingDumps_'
     mcp = ModelCheckpoint(dumploc+'/BestModel_'+str(no)+'.keras',
                               monitor='val_loss',save_best_only=False)
     model.compile(optimizer=sgd_optimizer, loss='mse')
@@ -101,7 +101,7 @@ param_grid = {
     "l2_val": [0.001, 0.01]
 }
 
-re_estimation_freq = 3 # Re-estimation frequency for NN, in months
+re_estimation_freq = 1 # Re-estimation frequency for NN, in months
 oos_iteration_indeces = range(oos_start_index, T, re_estimation_freq)
 total_iterations = len(ParameterGrid(param_grid)) * (len(oos_iteration_indeces))
 iteration = 0
