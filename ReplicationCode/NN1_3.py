@@ -86,7 +86,7 @@ param_grid = {
     'l1l2': [0.01, 0.001]
 }
 
-re_estimation_freq = 12 # Re-estimation frequency for NN, in months
+re_estimation_freq = 3 # Re-estimation frequency for NN, in months
 oos_iteration_indeces = range(oos_start_index, T, re_estimation_freq)
 total_iterations = len(ParameterGrid(param_grid)) * (len(oos_iteration_indeces))
 iteration_count = 0
