@@ -100,6 +100,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
     X_in = np.hstack([pcs_fwd_in, macro_pcs_in]) if macro_pcs_in is not None else pcs_fwd_in
     y_in = er_in.values
     model = LinearRegression().fit(X_in, y_in)
+    
 
     # Iterate through out-of-sample observations.
     for idx in range(len(fr_out)):
@@ -142,9 +143,8 @@ def iterative_pca_regression(er_in: pd.DataFrame,
         y_in = er_in.values
 
         # Fit on X_in and y_in.
-        # To avoid forward looking bias refit without the last 11 observations.
-        if idx >= 11:
-            model.fit(X_in[:-11], y_in[:-11])
+        
+        model.fit(X_in, y_in)
 
     return pd.Series(predictions, index=er_out.index)
 
@@ -246,7 +246,7 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=3, use_macro=False)
+    main(n_fwd_components=5, use_macro=False)
 
 
 

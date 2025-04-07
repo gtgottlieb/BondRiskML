@@ -7,7 +7,63 @@ from sklearn.ensemble import RandomForestRegressor
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
 from compute_benchmark import compute_benchmark_prediction
-from splitting_data import split_data_by_date
+
+
+def split_data_by_date(excess_returns: pd.DataFrame,
+                       forward_rates: pd.DataFrame,
+                       split_date, end_date,
+                       macro_data: pd.DataFrame = None) -> dict:
+    """
+    Splits excess returns, forward rates, and optionally macro data into 
+    in-sample and out-of-sample sets. The excess returns are shifted up by 1 year
+
+    Args:
+        excess_returns (pd.DataFrame): DataFrame with a 'Date' column.
+        forward_rates (pd.DataFrame): DataFrame with a 'Date' column.
+        split_date: Start date for the out-of-sample period.
+        end_date: End date for the out-of-sample period.
+        macro_data (pd.DataFrame, optional): DataFrame with a 'Date' column.
+
+    Returns:
+        dict: Dictionary containing in-sample and out-of-sample datasets.
+    """
+
+    # Ensure Date columns are datetime objects.
+    excess_returns["Date"] = pd.to_datetime(excess_returns["Date"])
+    forward_rates["Date"] = pd.to_datetime(forward_rates["Date"])
+    if macro_data is not None:
+        macro_data["Date"] = pd.to_datetime(macro_data["Date"])
+
+
+    # Make sure that the excess returns are 1 year ahead of the forward rates and macro data.
+    er_split_date = split_date + pd.DateOffset(months=12)
+    er_end_date = end_date + pd.DateOffset(months=12)
+
+  
+    in_er = excess_returns.loc[excess_returns["Date"] < er_split_date].copy()
+    out_er = excess_returns.loc[(excess_returns["Date"] >= er_split_date) &
+                                (excess_returns["Date"] <= er_end_date)].copy()
+
+    in_fr = forward_rates.loc[forward_rates["Date"] < split_date].copy()
+    out_fr = forward_rates.loc[(forward_rates["Date"] >= split_date) &
+                               (forward_rates["Date"] <= end_date)].copy()
+
+    if macro_data is not None:
+        in_macro = macro_data.loc[macro_data["Date"] < split_date].copy()
+        out_macro = macro_data.loc[(macro_data["Date"] >= split_date) &
+                                   (macro_data["Date"] <= end_date)].copy()
+    else:
+        in_macro, out_macro = None, None
+
+    return {
+        "excess_returns_in": in_er,
+        "excess_returns_out": out_er,
+        "forward_rates_in": in_fr,
+        "forward_rates_out": out_fr,
+        "macro_data_in": in_macro,
+        "macro_data_out": out_macro,
+    }
+
 
 def iterative_rf_regression(er_in: pd.DataFrame,
                              fr_in: pd.DataFrame,
@@ -77,21 +133,20 @@ def iterative_rf_regression(er_in: pd.DataFrame,
         y_in = er_in.values.flatten()
 
         # Retrain model with updated in-sample data.
-        if idx >= 11:
-            rf.fit(X_in[:-11], y_in[:-11])
+        rf.fit(X_in, y_in)
         #rf.fit(X_in, y_in) -> Can't refit with the current period, becasue it uses overlapping returns!!!
 
     return pd.Series(predictions, index=er_out.index)
 
 def main(use_macro: bool):
     # Load datasets.
-    forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
-    excess_returns = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
-    macro_data = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx") 
+    forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
+    excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
+    macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData1.xlsx") 
 
     # Define out-of-sample period.
-    start_oos = "1990-01-01"
-    end_oos = "2023-11-01"
+    start_oos = pd.to_datetime("1990-01-01")
+    end_oos = pd.to_datetime("2018-12-01")
 
     # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
@@ -149,7 +204,7 @@ def main(use_macro: bool):
 
         # Uncomment to plot the predictions
         # Extract the oos date
-        dates = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", usecols=["Date"])["Date"]
+        dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
         mask = (dates >= start_oos) & (dates <= end_oos)
         dates = dates.loc[mask].reset_index(drop=True)
@@ -180,4 +235,4 @@ def main(use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(use_macro=True)
+    main(use_macro=False)
