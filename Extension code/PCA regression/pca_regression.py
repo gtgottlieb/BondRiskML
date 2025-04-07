@@ -2,12 +2,67 @@ import pandas as pd
 import numpy as np
 from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
-from splitting_data import split_data_by_date
 import matplotlib.pyplot as plt
+
+
+def split_data_by_date(excess_returns: pd.DataFrame,
+                       forward_rates: pd.DataFrame,
+                       split_date, end_date,
+                       macro_data: pd.DataFrame = None) -> dict:
+    """
+    Splits excess returns, forward rates, and optionally macro data into 
+    in-sample and out-of-sample sets. The excess returns are shifted up by 1 year
+
+    Args:
+        excess_returns (pd.DataFrame): DataFrame with a 'Date' column.
+        forward_rates (pd.DataFrame): DataFrame with a 'Date' column.
+        split_date: Start date for the out-of-sample period.
+        end_date: End date for the out-of-sample period.
+        macro_data (pd.DataFrame, optional): DataFrame with a 'Date' column.
+
+    Returns:
+        dict: Dictionary containing in-sample and out-of-sample datasets.
+    """
+
+    # Ensure Date columns are datetime objects.
+    excess_returns["Date"] = pd.to_datetime(excess_returns["Date"])
+    forward_rates["Date"] = pd.to_datetime(forward_rates["Date"])
+    if macro_data is not None:
+        macro_data["Date"] = pd.to_datetime(macro_data["Date"])
+
+
+    # Make sure that the excess returns are 1 year ahead of the forward rates and macro data.
+    er_split_date = split_date + pd.DateOffset(months=12)
+    er_end_date = end_date + pd.DateOffset(months=12)
+
+  
+    in_er = excess_returns.loc[excess_returns["Date"] < er_split_date].copy()
+    out_er = excess_returns.loc[(excess_returns["Date"] >= er_split_date) &
+                                (excess_returns["Date"] <= er_end_date)].copy()
+
+    in_fr = forward_rates.loc[forward_rates["Date"] < split_date].copy()
+    out_fr = forward_rates.loc[(forward_rates["Date"] >= split_date) &
+                               (forward_rates["Date"] <= end_date)].copy()
+
+    if macro_data is not None:
+        in_macro = macro_data.loc[macro_data["Date"] < split_date].copy()
+        out_macro = macro_data.loc[(macro_data["Date"] >= split_date) &
+                                   (macro_data["Date"] <= end_date)].copy()
+    else:
+        in_macro, out_macro = None, None
+
+    return {
+        "excess_returns_in": in_er,
+        "excess_returns_out": out_er,
+        "forward_rates_in": in_fr,
+        "forward_rates_out": out_fr,
+        "macro_data_in": in_macro,
+        "macro_data_out": out_macro,
+    }
 
 
 def iterative_pca_regression(er_in: pd.DataFrame,
@@ -28,7 +83,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
     # Prepare IncrementalPCA for macro data if provided.
     if macro_in is not None:
-        macro_scaler = StandardScaler().fit(macro_in)
+        macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
         scaled_macro_in = macro_scaler.transform(macro_in)
         pca_macro = IncrementalPCA(n_components=n_macro_components)
         pca_macro.fit(scaled_macro_in)
@@ -47,7 +102,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
     model = LinearRegression().fit(X_in, y_in)
 
     # Iterate through out-of-sample observations.
-    for idx in range(len(er_out)):
+    for idx in range(len(fr_out)):
         # Transform current test sample for forward rates.
         fr_test = fr_out.iloc[[idx]]
         test_pcs_fwd = pca_fwd.transform(fr_test)
@@ -77,33 +132,34 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
         if macro_in is not None:
             # Refit scaler and update IncrementalPCA for macro data.
-            macro_scaler = StandardScaler().fit(macro_in)
+            macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
             pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
             X_in = np.hstack([pcs_fwd_in, macro_pcs_in])
         else:
             X_in = pcs_fwd_in
-
         y_in = er_in.values
-        model.fit(X_in, y_in)
+
+        # Fit on X_in and y_in.
+        # To avoid forward looking bias refit without the last 11 observations.
+        if idx >= 11:
+            model.fit(X_in[:-11], y_in[:-11])
 
     return pd.Series(predictions, index=er_out.index)
 
 
 def main(n_fwd_components: int, use_macro: bool):
     # Load datasets.
-    forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
-    excess_returns = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
-    macro_data = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx") 
+    forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
+    excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
+    macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData1.xlsx") 
+
 
     # Define out-of-sample period.
-    start_oos = "1990-01-01"
-    end_oos = "2023-11-01"
+    start_oos = pd.to_datetime("1990-01-01")
+    end_oos = pd.to_datetime("2018-12-01")
 
-    # Convert 'Date' columns to datetime.
-    for df in [forward_rates, excess_returns, macro_data]:
-        df["Date"] = pd.to_datetime(df["Date"])
         
     # Use macro data only if flagged.
     macro_for_split = macro_data if use_macro else None
@@ -116,10 +172,9 @@ def main(n_fwd_components: int, use_macro: bool):
         if data_split[key] is not None:
             data_split[key] = data_split[key].drop(columns="Date")
     
-
+            
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
-    realized = er_out.copy() # For computing IR
     #er_out.to_excel("data-folder/realized_xr.xlsx", index=False)
     fr_in = data_split["forward_rates_in"]
     fr_out = data_split["forward_rates_out"]
@@ -157,8 +212,9 @@ def main(n_fwd_components: int, use_macro: bool):
     for col in predictions:
 
         # Uncomment to plot the predictions
+        
         # Extract the oos date
-        dates = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", usecols=["Date"])["Date"]
+        dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
         mask = (dates >= start_oos) & (dates <= end_oos)
         dates = dates.loc[mask].reset_index(drop=True)
@@ -190,4 +246,7 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=3, use_macro=True)
+    main(n_fwd_components=3, use_macro=False)
+
+
+
