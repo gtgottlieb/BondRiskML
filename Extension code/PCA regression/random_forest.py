@@ -170,6 +170,24 @@ def iterative_rf_regression(er_in: pd.DataFrame,
 
     return pd.Series(predictions, index=er_out.index)
 
+def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos):
+    # Extract the oos dates from the xr.xlsx file.
+    dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
+    dates = pd.to_datetime(dates)
+    mask = (dates >= start_oos) & (dates <= end_oos)
+    dates = dates.loc[mask].reset_index(drop=True)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(dates, actual.values, linestyle='--', label="Actual")
+    plt.plot(dates, predictions.values, linestyle='-.', label="PCA Predictions")
+    plt.plot(dates, benchmark.values, linestyle='-', label="Benchmark")
+    plt.title("Out-of-Sample Comparison")
+    plt.xlabel("Date")
+    plt.ylabel("Return Values")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
 def main(use_macro: bool):
     # Load datasets.
     forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
@@ -206,7 +224,7 @@ def main(use_macro: bool):
     macro_out = data_split["macro_data_out"]
 
     # List of columns to predict.
-    columns_to_predict = ["2 y"] #, "3 y", "4 y", "5 y", "7 y", "10 y"]
+    columns_to_predict = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
     predictions = {}
 
     for col in columns_to_predict:
@@ -232,39 +250,33 @@ def main(use_macro: bool):
 
     # Store all predictions  
     bayes_df = pd.DataFrame()
+    preds_df = pd.DataFrame()
+    benchmark_df = pd.DataFrame()
     for col in predictions:
 
-        # Uncomment to plot the predictions
-        # Extract the oos date
-        dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
-        dates = pd.to_datetime(dates)
-        mask = (dates >= start_oos) & (dates <= end_oos)
-        dates = dates.loc[mask].reset_index(drop=True)
+        # Save all predictions from all models
+        bayes_df[col] = bayesian_shrinkage(benchmark_preds[col], predictions[col])
+        preds_df[col] = predictions[col]
+        benchmark_df[col] = benchmark_preds[col]
+        # Save to excel
+        bayes_df.to_excel("Extension code/PCA regression/Random forest preds/FWD_bayes.xlsx", index=False)
+        preds_df.to_excel("Extension code/PCA regression/Random forest preds/FWD_rf.xlsx", index=False)
+        benchmark_df.to_excel("Extension code/PCA regression/Random forest preds/FWD_benchmark.xlsx", index=False)
 
-        # Plot the predictions vs benchmark vs actuals for each column.
-        plt.figure(figsize=(10, 6))
-        plt.plot(dates, er_out[col].values, linestyle='--', label="Actual")
-        plt.plot(dates, predictions[col].values, linestyle='-.', label="PCA Predictions")
-        plt.plot(dates, benchmark_preds[col].values, linestyle='-', label="Benchmark")
-        plt.title(f"Out-of-Sample Comparison for {col}")
-        plt.xlabel("Date")
-        plt.ylabel("Return Values")
-        plt.legend()
-        plt.grid(True)
-        plt.show()
-        
+        # Plot the results using the reusable plotting function.
+        plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos)
+
         # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
         print(f"Out-of-sample R2 for {col}: {r2_value}")
 
-        # Compute model Roos with Bayesian shrinkage
         bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
-        bayes_df[col] = bayes_preds # For saving the predictions
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
+
 
 
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(use_macro=True)
+    main(use_macro=False)
