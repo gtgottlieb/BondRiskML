@@ -142,9 +142,9 @@ def iterative_pca_regression(er_in: pd.DataFrame,
             X_in = pcs_fwd_in
         y_in = er_in.values
 
-        # Fit on X_in and y_in.
-        
-        model.fit(X_in, y_in)
+        # Fit with delayed data to avoid data leakage.
+        if idx >= 11:
+            model.fit(X_in[:-11], y_in[:-11])
 
     return pd.Series(predictions, index=er_out.index)
 

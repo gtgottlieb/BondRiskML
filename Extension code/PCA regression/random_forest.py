@@ -7,7 +7,35 @@ from sklearn.ensemble import RandomForestRegressor
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
 from compute_benchmark import compute_benchmark_prediction
+from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV
 
+# Reusable function that performs randomized grid search using the last 15% as validation.
+def refit_rf_model(X, y):
+    n_samples = X.shape[0]
+    test_size = int(np.ceil(0.15 * n_samples))
+    train_size = n_samples - test_size
+    test_fold = np.concatenate((np.full(train_size, -1), np.zeros(test_size, dtype=int)))
+    pre_split = PredefinedSplit(test_fold=test_fold)
+    
+    param_dist = {
+        "n_estimators": [100, 200],
+        "max_depth": [5, 10, 15],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4],
+    }
+    rf = RandomForestRegressor(random_state=42)
+    random_search = RandomizedSearchCV(
+        rf,
+        param_distributions=param_dist,
+        cv=pre_split,
+        n_iter=10,
+        random_state=42,
+        n_jobs=-1
+    )
+    random_search.fit(X, y)
+    best_rf = random_search.best_estimator_
+    best_rf.fit(X, y)
+    return best_rf
 
 def split_data_by_date(excess_returns: pd.DataFrame,
                        forward_rates: pd.DataFrame,
@@ -73,7 +101,8 @@ def iterative_rf_regression(er_in: pd.DataFrame,
                              macro_out: pd.DataFrame = None,
                              n_macro_components: int = 8) -> pd.Series:
     """
-    Performs iterative PCA regression with RandomForestClassifier and grid search.
+    Performs iterative PCA regression with RandomForestRegressor and retrains the model
+    using a reusable randomized grid search function (with last 15% split for CV).
     """
     predictions = []
 
@@ -93,8 +122,8 @@ def iterative_rf_regression(er_in: pd.DataFrame,
     y_in = er_in.values.flatten()
 
     
-    rf = RandomForestRegressor(random_state=42, n_jobs=-1)
-    rf.fit(X_in, y_in)
+    # Initial fit with randomized grid search using last 15% as validation.
+    rf = refit_rf_model(X_in, y_in)
 
     # Iterate through out-of-sample observations.
     for idx in range(len(er_out)):
@@ -132,9 +161,12 @@ def iterative_rf_regression(er_in: pd.DataFrame,
 
         y_in = er_in.values.flatten()
 
-        # Retrain model with updated in-sample data.
-        rf.fit(X_in, y_in)
-        #rf.fit(X_in, y_in) -> Can't refit with the current period, becasue it uses overlapping returns!!!
+                # Retrain model with updated in-sample data using cross validation.
+        # Fit with delayed data to avoid data leakage.
+        if idx >= 11:
+            # Use delayed data (exclude the last 11 observations) to avoid data leakage.
+            rf = refit_rf_model(X_in[:-11], y_in[:-11])
+
 
     return pd.Series(predictions, index=er_out.index)
 
@@ -174,7 +206,7 @@ def main(use_macro: bool):
     macro_out = data_split["macro_data_out"]
 
     # List of columns to predict.
-    columns_to_predict = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
+    columns_to_predict = ["2 y"] #, "3 y", "4 y", "5 y", "7 y", "10 y"]
     predictions = {}
 
     for col in columns_to_predict:
