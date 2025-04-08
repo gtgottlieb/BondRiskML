@@ -267,4 +267,4 @@ def main(use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(use_macro=False)
+    main(use_macro=True)
