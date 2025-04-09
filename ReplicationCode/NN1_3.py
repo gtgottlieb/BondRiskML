@@ -4,8 +4,13 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 import ModelComparison_Rolling
+<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
 from keras.models import Model
 from keras.layers import Dense, Input, Dropout
+=======
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, Input
+>>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
 from keras.optimizers import SGD
 from keras.models import load_model
 from keras.regularizers import l1_l2
@@ -15,53 +20,49 @@ from sklearn.model_selection import ParameterGrid
 
 ## Upload and allign data
 
+<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
 # Import yield and macro data, set in dataframe format with 'Date' column 
 fwd_df = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx", engine='openpyxl')
 xr_df = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", engine='openpyxl')
+=======
+# Import yield data, set in dataframe format with 'Date' column 
+yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
+forward_rates, xr = data_prep.process_yield_data(yields_df)
+fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
+>>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
 
-'''
-macro_df = pd.read_csv('/Users/avril/Desktop/Seminar/Data/FRED-MD monthly 2024-12.csv')
-macro_df = macro_df.drop(index=0) # Drop "Transform" row
-macro_df = macro_df.rename(columns={'sasdate':'Date'})
-macro_df['Date'] = pd.to_datetime(macro_df['Date'])
-macro_df = macro_df.interpolate(method='linear') # Interpolate missing values'
-'''
-
-# Set sample period as in Bianchi, later expand to end_date = '2023-11-01'
+# Set sample period
 start_date = '1971-09-01' 
-end_date = '2018-12-01'
+end_date = '2018-12-01' # As in Bianchi
+# end_date = '2018-12-01' # Extended
 
 fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
 xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
-# macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_date)]
 
 ## Prepare variables
 Y = xr_df.drop(columns = 'Date').values
 X = fwd_df.drop(columns = 'Date').values
-# X_exog = macro_df.drop(columns = 'Date').values
 
 # Scale variables
 X_scaler = MinMaxScaler(feature_range=(-1,1))
-# X_exog_scaler = MinMaxScaler(feature_range=(-1,1))
-
-X = X_scaler.fit_transform(X)
-# X_exog = X_exog_scaler.fit_transform(X_exog)
+X_scaled = X_scaler.fit_transform(X)
 
 # Determine in-sample / out-of-sample split
 oos_start_index = int(len(Y) * 0.85)
-T = int(X.shape[0])
+T = int(Y.shape[0])
 
 ## Set up and fit NN(1 layer, 3 neurons) model
 
+<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
 def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=500):
+=======
+# Change: Extend in-sample with predicted observation @ t+1, instead of actual value
+
+def NN1_3(X, Y, no, l1l2, n_epochs=100):
+    
+>>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
     X_train, Y_train = X[:-1,:], Y[:-1,:] 
     X_test = X[-1,:].reshape(1,-1)
-
-    X_scaler = MinMaxScaler(feature_range=(-1,1))   
-    X_scaled_train = X_scaler.fit_transform(X_train)
-    
-    # Keras requires 3D tuples for training.
-    X_scaled_train = np.expand_dims(X_scaled_train, axis=1)
     Y_train = np.expand_dims(Y_train, axis=1)
 
     # Set seeds for replication
@@ -70,13 +71,17 @@ def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=500):
 
     # Set up model architecture (1 hidden layer, 3 neurons)
     input_layer = Input(shape=(X_train.shape[1],))
-    hidden_layer = Dense(3, activation='relu', kernel_regularizer=l1_l2(l1=l1_val, l2=l2_val))(input_layer)
+    hidden_layer = Dense(3, activation='relu', kernel_regularizer=l1_l2(l1l2))(input_layer)
     output_layer = Dense(Y_train.shape[2], activation='linear')(hidden_layer) 
     model = Model(inputs=input_layer, outputs=output_layer)
 
     # Compile model
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
     dumploc = './trainingDumps_'
+=======
+    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN1_3'
+>>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
     mcp = ModelCheckpoint(dumploc+'/BestModel_'+str(no)+'.keras',
                               monitor='val_loss',save_best_only=False)
     model.compile(optimizer=sgd_optimizer, loss='mse')
@@ -97,14 +102,13 @@ def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=500):
 # Generate predictions
 
 param_grid = {
-    "l1_val": [0.001, 0.01],  
-    "l2_val": [0.001, 0.01]
+    'l1l2': [0.01, 0.001]
 }
 
 re_estimation_freq = 1 # Re-estimation frequency for NN, in months
 oos_iteration_indeces = range(oos_start_index, T, re_estimation_freq)
 total_iterations = len(ParameterGrid(param_grid)) * (len(oos_iteration_indeces))
-iteration = 0
+iteration_count = 0
 
 all_Y_pred = []
 
@@ -113,25 +117,26 @@ for i in oos_iteration_indeces:
     best_params = None
 
     for params in ParameterGrid(param_grid):
-        # 
-        iteration += 1
-        print(f"Running iteration {iteration}/{total_iterations} | Testing params: {params}") 
-        Y_pred_val, val_loss = NN1_3(X = X[:i,:], Y = Y[:i,:],no=i, **params)  
+        
+        iteration_count += 1
+        print(f"Running iteration {iteration_count}/{total_iterations} | Testing params: {params}") 
+        Y_pred_val, val_loss = NN1_3(X = X_scaled[:i,:], Y = Y[:i,:], no=i, **params)  
 
         if val_loss < best_score:
             best_score = val_loss
             best_params = params
         
-    Y_pred, val_loss_final = NN1_3(X = X[:i,:], no=T, Y = Y[:i,:], **best_params) 
+    Y_pred, val_loss_final = NN1_3(X = X_scaled[:i,:], Y = Y[:i,:], no=T, **best_params) 
     all_Y_pred.append(Y_pred)  
    
 all_Y_pred = np.vstack(all_Y_pred) 
 
 # Analyze model performance
-all_R2_oos = {}
 Y_test = Y[oos_start_index::re_estimation_freq,:]
 
-for maturity in range(Y.shape[1]):
+for maturity in range(1,Y.shape[1]):
     r2_oos = ModelComparison_Rolling.R2OOS(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
-    all_R2_oos[f"Maturity {maturity + 1}"] = r2_oos
     print(f"OOS R^2 Score for Maturity {maturity + 1}: {r2_oos:.4f}")
+
+    r2_significance = ModelComparison_Rolling.RSZ_Signif(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
+    print(f"R^2 Significance for Maturity {maturity + 1}: {r2_significance:.4f}")
