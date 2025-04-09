@@ -4,13 +4,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 import ModelComparison_Rolling
-<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
 from keras.models import Model
 from keras.layers import Dense, Input, Dropout
-=======
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Input
->>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
 from keras.optimizers import SGD
 from keras.models import load_model
 from keras.regularizers import l1_l2
@@ -20,16 +15,9 @@ from sklearn.model_selection import ParameterGrid
 
 ## Upload and allign data
 
-<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
 # Import yield and macro data, set in dataframe format with 'Date' column 
 fwd_df = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx", engine='openpyxl')
 xr_df = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", engine='openpyxl')
-=======
-# Import yield data, set in dataframe format with 'Date' column 
-yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
-forward_rates, xr = data_prep.process_yield_data(yields_df)
-fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
->>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
 
 # Set sample period
 start_date = '1971-09-01' 
@@ -53,14 +41,10 @@ T = int(Y.shape[0])
 
 ## Set up and fit NN(1 layer, 3 neurons) model
 
-<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
-def NN1_3(X, Y, no, l1_val, l2_val, n_epochs=500):
-=======
 # Change: Extend in-sample with predicted observation @ t+1, instead of actual value
 
 def NN1_3(X, Y, no, l1l2, n_epochs=100):
     
->>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
     X_train, Y_train = X[:-1,:], Y[:-1,:] 
     X_test = X[-1,:].reshape(1,-1)
     Y_train = np.expand_dims(Y_train, axis=1)
@@ -77,11 +61,7 @@ def NN1_3(X, Y, no, l1l2, n_epochs=100):
 
     # Compile model
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
-<<<<<<< HEAD:ReplicationCode/NN1_3_with_weight_optim.py
     dumploc = './trainingDumps_'
-=======
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN1_3'
->>>>>>> 6b6ef620e135611bf0a27f614acd38b719b0e30c:ReplicationCode/NN1_3.py
     mcp = ModelCheckpoint(dumploc+'/BestModel_'+str(no)+'.keras',
                               monitor='val_loss',save_best_only=False)
     model.compile(optimizer=sgd_optimizer, loss='mse')
