@@ -259,9 +259,9 @@ def main(use_macro: bool):
         preds_df[col] = predictions[col]
         benchmark_df[col] = benchmark_preds[col]
         # Save to excel
-        bayes_df.to_excel("Extension code/PCA regression/Random forest preds/FWD_bayes.xlsx", index=False)
-        preds_df.to_excel("Extension code/PCA regression/Random forest preds/FWD_rf.xlsx", index=False)
-        benchmark_df.to_excel("Extension code/PCA regression/Random forest preds/FWD_benchmark.xlsx", index=False)
+        bayes_df.to_excel("Extension code/PCA regression/Random forest preds/Macro_bayes.xlsx", index=False)
+        preds_df.to_excel("Extension code/PCA regression/Random forest preds/Macro_rf.xlsx", index=False)
+        benchmark_df.to_excel("Extension code/PCA regression/Random forest preds/Macro_benchmark.xlsx", index=False)
 
         # Plot the results using the reusable plotting function.
         plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos)
@@ -279,4 +279,4 @@ def main(use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(use_macro=False)
+    main(use_macro=True)
