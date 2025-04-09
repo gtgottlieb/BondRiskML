@@ -91,11 +91,14 @@ def run_cp_replication(yields_df, start_date="1964-01-01", end_date="2019-01-01"
     print("Intercept:", model.intercept_)
     print("R-squared:", model.score(X, y))
 
+    forward_rates.to_excel("data-folder/Gabriel data/forward_rates.xlsx", index=False)
+    xr.to_excel("data-folder/Gabriel data/excess_returns.xlsx", index=False)
+    
+
 if __name__ == "__main__":
     # Example usage with a DataFrame
-    file_path = "data-folder/CP replication data/Yields.xlsx"
+    #file_path = "data-folder/CP replication data/Yields.xlsx"
+    file_path = "data-folder/Cleaned data/Yields+Final/Aligned_Yields.xlsx"
     yields_df = pd.read_excel(file_path, parse_dates=True)
     run_cp_replication(yields_df)
-
-
 

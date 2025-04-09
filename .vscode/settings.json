@@ -7,5 +7,9 @@
         "*test.py"
     ],
     "python.testing.pytestEnabled": false,
-    "python.testing.unittestEnabled": true
+    "python.testing.unittestEnabled": true,
+    "python.analysis.extraPaths": [
+        "./Extension code/Data cleaning procedures",
+        "./Extension code/PCA regression"
+    ]
 }

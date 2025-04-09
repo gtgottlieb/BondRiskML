@@ -246,7 +246,4 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=5, use_macro=False)
-
-
-
+    main(n_fwd_components=3, use_macro=True)
