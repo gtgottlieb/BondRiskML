@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import Data_preprocessing as data_prep
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 import ModelComparison_Rolling
@@ -15,10 +14,9 @@ from sklearn.model_selection import ParameterGrid
 ## Upload and allign data
 
 # Import yield and macro data, set in dataframe format with 'Date' column 
-yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
-forward_rates, xr = data_prep.process_yield_data(yields_df)
-fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
-macro_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Imputted_MacroData.xlsx')
+fwd_df = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx", engine='openpyxl')
+xr_df = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", engine='openpyxl')
+macro_df = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData/xr.xlsx", engine='openpyxl')
 
 # Set sample period as in Bianchi, later expand to end_date = '2023-11-01'
 start_date = '1971-09-01' 

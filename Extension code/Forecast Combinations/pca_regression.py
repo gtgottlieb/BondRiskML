@@ -2,9 +2,12 @@ import pandas as pd
 import numpy as np
 from sklearn.decomposition import IncrementalPCA
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
+from bayesian_shrinkage import bayesian_shrinkage
+import matplotlib.pyplot as plt
+
 
 def split_data_by_date(excess_returns: pd.DataFrame,
                        forward_rates: pd.DataFrame,
@@ -12,7 +15,7 @@ def split_data_by_date(excess_returns: pd.DataFrame,
                        macro_data: pd.DataFrame = None) -> dict:
     """
     Splits excess returns, forward rates, and optionally macro data into 
-    in-sample and out-of-sample sets.
+    in-sample and out-of-sample sets. The excess returns are shifted up by 1 year
 
     Args:
         excess_returns (pd.DataFrame): DataFrame with a 'Date' column.
@@ -24,17 +27,30 @@ def split_data_by_date(excess_returns: pd.DataFrame,
     Returns:
         dict: Dictionary containing in-sample and out-of-sample datasets.
     """
-    in_er = excess_returns.loc[excess_returns["Date"] < split_date].copy()
-    out_er = excess_returns.loc[(excess_returns["Date"] >= split_date) & 
-                                (excess_returns["Date"] <= end_date)].copy()
+
+    # Ensure Date columns are datetime objects.
+    excess_returns["Date"] = pd.to_datetime(excess_returns["Date"])
+    forward_rates["Date"] = pd.to_datetime(forward_rates["Date"])
+    if macro_data is not None:
+        macro_data["Date"] = pd.to_datetime(macro_data["Date"])
+
+
+    # Make sure that the excess returns are 1 year ahead of the forward rates and macro data.
+    er_split_date = split_date + pd.DateOffset(months=12)
+    er_end_date = end_date + pd.DateOffset(months=12)
+
+  
+    in_er = excess_returns.loc[excess_returns["Date"] < er_split_date].copy()
+    out_er = excess_returns.loc[(excess_returns["Date"] >= er_split_date) &
+                                (excess_returns["Date"] <= er_end_date)].copy()
 
     in_fr = forward_rates.loc[forward_rates["Date"] < split_date].copy()
-    out_fr = forward_rates.loc[(forward_rates["Date"] >= split_date) & 
+    out_fr = forward_rates.loc[(forward_rates["Date"] >= split_date) &
                                (forward_rates["Date"] <= end_date)].copy()
 
     if macro_data is not None:
         in_macro = macro_data.loc[macro_data["Date"] < split_date].copy()
-        out_macro = macro_data.loc[(macro_data["Date"] >= split_date) & 
+        out_macro = macro_data.loc[(macro_data["Date"] >= split_date) &
                                    (macro_data["Date"] <= end_date)].copy()
     else:
         in_macro, out_macro = None, None
@@ -47,6 +63,7 @@ def split_data_by_date(excess_returns: pd.DataFrame,
         "macro_data_in": in_macro,
         "macro_data_out": out_macro,
     }
+
 
 def iterative_pca_regression(er_in: pd.DataFrame,
                              fr_in: pd.DataFrame,
@@ -66,7 +83,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
     # Prepare IncrementalPCA for macro data if provided.
     if macro_in is not None:
-        macro_scaler = StandardScaler().fit(macro_in)
+        macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
         scaled_macro_in = macro_scaler.transform(macro_in)
         pca_macro = IncrementalPCA(n_components=n_macro_components)
         pca_macro.fit(scaled_macro_in)
@@ -85,7 +102,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
     model = LinearRegression().fit(X_in, y_in)
 
     # Iterate through out-of-sample observations.
-    for idx in range(len(er_out)):
+    for idx in range(len(fr_out)):
         # Transform current test sample for forward rates.
         fr_test = fr_out.iloc[[idx]]
         test_pcs_fwd = pca_fwd.transform(fr_test)
@@ -115,7 +132,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
         if macro_in is not None:
             # Refit scaler and update IncrementalPCA for macro data.
-            macro_scaler = StandardScaler().fit(macro_in)
+            macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
             pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
@@ -125,31 +142,23 @@ def iterative_pca_regression(er_in: pd.DataFrame,
 
         y_in = er_in.values
         model.fit(X_in, y_in)
-
     return pd.Series(predictions, index=er_out.index)
+
 
 def main(n_fwd_components: int, use_macro: bool):
     # Load datasets.
-    forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx")
-    excess_returns = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx")
-    macro_data = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx")  # Example path
+    forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
+    excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
+    macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
 
     # Define out-of-sample period.
-    start_oos = "1990-01-01"
-    end_oos = "2018-12-01"
+    start_oos = pd.to_datetime("1990-01-01")
+    end_oos = pd.to_datetime("2018-12-01")
 
     # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
         df["Date"] = pd.to_datetime(df["Date"])
-    
-    # Lag macro data if using it.
-    if use_macro:
-        macro_data = macro_data.sort_values("Date").copy()
-        # Lag all columns except the Date column by one period.
-        macro_cols = macro_data.columns.difference(["Date"])
-        macro_data[macro_cols] = macro_data[macro_cols].shift(1)
-        macro_data = macro_data.dropna().reset_index(drop=True)
-
+        
     # Use macro data only if flagged.
     macro_for_split = macro_data if use_macro else None
 
@@ -161,24 +170,11 @@ def main(n_fwd_components: int, use_macro: bool):
         if data_split[key] is not None:
             data_split[key] = data_split[key].drop(columns="Date")
     
-    # If using macro data, align the datasets by truncating to the minimum length.
-    if use_macro and data_split["macro_data_in"] is not None:
-        min_in = min(len(data_split["excess_returns_in"]),
-                     len(data_split["forward_rates_in"]),
-                     len(data_split["macro_data_in"]))
-        data_split["excess_returns_in"] = data_split["excess_returns_in"].iloc[:min_in]
-        data_split["forward_rates_in"] = data_split["forward_rates_in"].iloc[:min_in]
-        data_split["macro_data_in"] = data_split["macro_data_in"].iloc[:min_in]
-    if use_macro and data_split["macro_data_out"] is not None:
-        min_out = min(len(data_split["excess_returns_out"]),
-                      len(data_split["forward_rates_out"]),
-                      len(data_split["macro_data_out"]))
-        data_split["excess_returns_out"] = data_split["excess_returns_out"].iloc[:min_out]
-        data_split["forward_rates_out"] = data_split["forward_rates_out"].iloc[:min_out]
-        data_split["macro_data_out"] = data_split["macro_data_out"].iloc[:min_out]
 
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
+    realized = er_out.copy() # For computing IR
+    #er_out.to_excel("data-folder/realized_xr.xlsx", index=False)
     fr_in = data_split["forward_rates_in"]
     fr_out = data_split["forward_rates_out"]
     macro_in = data_split["macro_data_in"]
@@ -209,35 +205,43 @@ def main(n_fwd_components: int, use_macro: bool):
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
 
     # Report out-of-sample R2 for each column.
+
+    # Store all predictions  
+    bayes_df = pd.DataFrame()
     for col in predictions:
+
+        # Uncomment to plot the predictions
+        # Extract the oos date
+        dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
+        dates = pd.to_datetime(dates)
+        mask = (dates >= start_oos) & (dates <= end_oos)
+        dates = dates.loc[mask].reset_index(drop=True)
+
+        # Plot the predictions vs benchmark vs actuals for each column.
+        plt.figure(figsize=(10, 6))
+        plt.plot(dates, er_out[col].values, linestyle='--', label="Actual")
+        plt.plot(dates, predictions[col].values, linestyle='-.', label="PCA Predictions")
+        plt.plot(dates, benchmark_preds[col].values, linestyle='-', label="Benchmark")
+        plt.title(f"Out-of-Sample Comparison for {col}")
+        plt.xlabel("Date")
+        plt.ylabel("Return Values")
+        plt.legend()
+        plt.grid(True)
+        #plt.show()
+        
+        
+        # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
         print(f"Out-of-sample R2 for {col}: {r2_value}")
 
+        # Compute model Roos with Bayesian shrinkage
+        bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
+        bayes_df[col] = bayes_preds # For saving the predictions
+        r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
+        print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
+
+
+        
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=10, use_macro=True)
-
-    """
-    # Plotting and exporting the predictions
-
-    import matplotlib.pyplot as plt
-
-    # === Export predictions to Excel ===
-    pred_df = pd.DataFrame(predictions)
-    pred_df.index = excess_returns_oos.index
-    pred_df.to_excel("pca_predictions.xlsx")
-    print("\nPredictions saved to pca_predictions.xlsx")
-
-    # === Plot predictions vs true values ===
-    for column in columns_to_predict:
-        plt.figure(figsize=(10, 5))
-        plt.plot(excess_returns_oos.index, excess_returns_oos[column], label="True", linewidth=1.5)
-        plt.plot(pred_df.index, pred_df[column], label="Predicted", linestyle="--")
-        plt.title(f"PCA Forecast vs Actual - {column}")
-        plt.xlabel("Date")
-        plt.ylabel("Excess Return")
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-    """
+    main(n_fwd_components=3, use_macro=True)
