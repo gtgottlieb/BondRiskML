@@ -161,19 +161,12 @@ def iterative_rf_regression(er_in: pd.DataFrame,
 
         y_in = er_in.values.flatten()
 
-<<<<<<< HEAD:Extension code/PCA regression/random_forest.py
-        # Retrain model with updated in-sample data.
-        #if idx >= 11:
-            #rf.fit(X_in[:-11], y_in[:-11])
-        rf.fit(X_in, y_in)  #Can't refit with the current period, becasue it uses overlapping returns!!!
-=======
                 # Retrain model with updated in-sample data using cross validation.
         # Fit with delayed data to avoid data leakage.
         if idx >= 11:
             # Use delayed data (exclude the last 11 observations) to avoid data leakage.
             rf = refit_rf_model(X_in[:-11], y_in[:-11])
 
->>>>>>> origin/PCA_regression:Extension code/Forecasting models/random_forest.py
 
     return pd.Series(predictions, index=er_out.index)
 
