@@ -15,16 +15,7 @@ def simple_average_forecast(forecasts):
     return np.mean(forecasts, axis=0)
 
 def weighted_average_forecast(forecasts, actual):
-    """
-    Combine forecasts using weighted average with weights = 1/MSE.
-    Weights are normalized to sum to 1.
     
-    Parameters:
-        forecasts (list of np.ndarray): List of forecast arrays from different models.
-        actual (np.ndarray): Actual observed values to compute the MSE for each forecast.
-    Returns:
-        np.ndarray: Combined forecast using weighted average.
-    """
     mse_list = []
     for i, forecast in enumerate(forecasts):
         mse = np.mean((actual - forecast) ** 2)
