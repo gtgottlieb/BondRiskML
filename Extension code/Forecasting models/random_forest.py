@@ -9,6 +9,19 @@ from bayesian_shrinkage import bayesian_shrinkage
 from compute_benchmark import compute_benchmark_prediction
 from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV
 
+def compute_benchmark_prediction(xr_insample, xr_oos):
+    benchmark_preds = []
+
+    for i in range(len(xr_oos)):
+        combined = pd.concat([xr_insample, xr_oos.iloc[:i+1]]) 
+        #avg_val = combined.mean()  # This computes column-wise means
+        # This computes column-wise means from 12 months before
+        avg_val = combined.iloc[:-12].mean() if len(combined) > 12 else combined.mean() 
+        benchmark_preds.append(avg_val)
+
+    # Convert list of Series (one per iteration) to a single DataFrames
+    return pd.DataFrame(benchmark_preds, index=xr_oos.index)
+
 # Reusable function that performs randomized grid search using the last 15% as validation.
 def refit_rf_model(X, y):
     n_samples = X.shape[0]
@@ -170,7 +183,7 @@ def iterative_rf_regression(er_in: pd.DataFrame,
 
     return pd.Series(predictions, index=er_out.index)
 
-def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos):
+def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos, model=""):
     # Extract the oos dates from the xr.xlsx file.
     dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
     dates = pd.to_datetime(dates)
@@ -179,7 +192,7 @@ def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos):
 
     plt.figure(figsize=(10, 6))
     plt.plot(dates, actual.values, linestyle='--', label="Actual")
-    plt.plot(dates, predictions.values, linestyle='-.', label="PCA Predictions")
+    plt.plot(dates, predictions.values, linestyle='-.', label=f"{model} Predictions")
     plt.plot(dates, benchmark.values, linestyle='-', label="Benchmark")
     plt.title("Out-of-Sample Comparison")
     plt.xlabel("Date")
@@ -192,11 +205,11 @@ def main(use_macro: bool):
     # Load datasets.
     forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
-    macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData1.xlsx") 
+    macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
 
     # Define out-of-sample period.
     start_oos = pd.to_datetime("1990-01-01")
-    end_oos = pd.to_datetime("2018-12-01")
+    end_oos = pd.to_datetime("2023-11-01")
 
     # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
@@ -249,22 +262,23 @@ def main(use_macro: bool):
     # Report out-of-sample R2 for each column.
 
     # Store all predictions  
-    bayes_df = pd.DataFrame()
     preds_df = pd.DataFrame()
     benchmark_df = pd.DataFrame()
     for col in predictions:
 
-        # Save all predictions from all models
-        bayes_df[col] = bayesian_shrinkage(benchmark_preds[col], predictions[col])
+        # Save predictions
         preds_df[col] = predictions[col]
         benchmark_df[col] = benchmark_preds[col]
+
         # Save to excel
-        bayes_df.to_excel("Extension code/PCA regression/Random forest preds/Macro_bayes.xlsx", index=False)
-        preds_df.to_excel("Extension code/PCA regression/Random forest preds/Macro_rf.xlsx", index=False)
-        benchmark_df.to_excel("Extension code/PCA regression/Random forest preds/Macro_benchmark.xlsx", index=False)
+        if use_macro:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx", index=False)
+        else:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/FWD_rf.xlsx", index=False)
+        
 
         # Plot the results using the reusable plotting function.
-        plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos)
+        plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model = "Rf")
 
         # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
@@ -280,3 +294,5 @@ def main(use_macro: bool):
 if __name__ == "__main__":
     # Directly call main with desired parameters.
     main(use_macro=True)
+
+    
