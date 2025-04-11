@@ -11,9 +11,18 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import load_model
 from tensorflow.keras.regularizers import l1_l2
 from sklearn.model_selection import ParameterGrid
+from sklearn.decomposition import PCA
+import time
 
+'''
+TO DO:
+* 
+'''
 
 ## Upload and allign data
+
+first_differences = False
+pca_as_input = True
 
 # Import yield data, set in dataframe format with 'Date' column 
 yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
@@ -21,30 +30,39 @@ forward_rates, xr = data_prep.process_yield_data(yields_df)
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
 
 # Set sample period
-start_date = '1971-09-01' 
+start_date = '1971-08-01' 
 end_date = '2018-12-01' # As in Bianchi
-# end_date = '2018-12-01' # Extended
 
 fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
 xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
 
+oos_start_date = '1990-01-01'
+oos_start_index = fwd_df[fwd_df['Date'] == oos_start_date].index[0]
+
+if first_differences:
+    fwd_df = fwd_df.diff()
+    xr_df = xr_df.shift(-1)  # Shift Y to match the X diff at t
+
+    # Drop the first row where diff is NaN
+    valid_index = fwd_df.index[1:]
+    fwd_df = fwd_df.loc[valid_index]
+    xr_df = xr_df.loc[valid_index]
+
 ## Prepare variables
-Y = xr_df.drop(columns = 'Date').values
-X = fwd_df.drop(columns = 'Date').values
+xr_df, fwd_df = xr_df.drop(columns = 'Date'),fwd_df.drop(columns = 'Date')
+Y, X = xr_df.values, fwd_df.values
 
-# Scale variables
-X_scaler = MinMaxScaler(feature_range=(-1,1))
+X_scaler = MinMaxScaler(feature_range=(-1, 1))
+
+if pca_as_input:
+    pca = PCA(n_components=3)
+    X = pca.fit_transform(X)
+    
 X_scaled = X_scaler.fit_transform(X)
-
-# Determine in-sample / out-of-sample split
-oos_start_index = int(len(Y) * 0.85)
-T = int(Y.shape[0])
 
 ## Set up and fit NN(1 layer, 3 neurons) model
 
-# Change: Extend in-sample with predicted observation @ t+1, instead of actual value
-
-def NN1_3(X, Y, no, l1l2, n_epochs=100):
+def NN1_3(X, Y, no, l1l2, n_epochs=10):
     
     X_train, Y_train = X[:-1,:], Y[:-1,:] 
     X_test = X[-1,:].reshape(1,-1)
@@ -86,38 +104,58 @@ param_grid = {
     'l1l2': [0.01, 0.001]
 }
 
+# Determine train-validation split
+T = int(Y.shape[0])
 re_estimation_freq = 3 # Re-estimation frequency for NN, in months
-oos_iteration_indeces = range(oos_start_index, T, re_estimation_freq)
+oos_iteration_indeces = [oos_start_index] + list(range(oos_start_index + 11, T, re_estimation_freq))
 total_iterations = len(ParameterGrid(param_grid)) * (len(oos_iteration_indeces))
 iteration_count = 0
-
 all_Y_pred = []
+start_time = time.time()
 
 for i in oos_iteration_indeces:
     best_score = float('inf')
     best_params = None
+    best_Y_pred = None
 
     for params in ParameterGrid(param_grid):
         
         iteration_count += 1
         print(f"Running iteration {iteration_count}/{total_iterations} | Testing params: {params}") 
-        Y_pred_val, val_loss = NN1_3(X = X_scaled[:i,:], Y = Y[:i,:], no=i, **params)  
+        Y_pred, val_loss = NN1_3(X = X_scaled[:i,:], Y = Y[:i,:], no=i, **params)  
 
         if val_loss < best_score:
             best_score = val_loss
             best_params = params
+            best_Y_pred = Y_pred
         
-    Y_pred, val_loss_final = NN1_3(X = X_scaled[:i,:], Y = Y[:i,:], no=T, **best_params) 
     all_Y_pred.append(Y_pred)  
    
 all_Y_pred = np.vstack(all_Y_pred) 
 
 # Analyze model performance
-Y_test = Y[oos_start_index::re_estimation_freq,:]
+Y_test = Y[oos_iteration_indeces,:]
+
+import HAC_CW_adj_R2_signif_test
+import compute_benchmark
+benchmark = compute_benchmark.compute_benchmark_prediction(Y[:oos_start_index-1,:], Y_test)
+benchmark = benchmark.values.ravel()
+maturity_names = xr_df.columns.tolist()
+
+if first_differences:
+    print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences) ===")
+else:
+    print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance ===")
 
 for maturity in range(1,Y.shape[1]):
+    maturity_name = maturity_names[maturity]
     r2_oos = ModelComparison_Rolling.R2OOS(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
-    print(f"OOS R^2 Score for Maturity {maturity + 1}: {r2_oos:.4f}")
+    mspe = np.mean((Y_test[:, maturity] - all_Y_pred[:, maturity]) ** 2)
+    signif_test_stat, signif_p_value = HAC_CW_adj_R2_signif_test.get_CW_adjusted_R2_signif(Y_test[:, maturity], all_Y_pred[:, maturity], benchmark)
+    print(f"{maturity_name}: R²OOS={r2_oos:.3f}%, MSPE={mspe:.3f}, p-value={signif_p_value:.3f}")
 
-    r2_significance = ModelComparison_Rolling.RSZ_Signif(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
-    print(f"R^2 Significance for Maturity {maturity + 1}: {r2_significance:.4f}")
+# Compute total runtime
+end_time = time.time()
+total_runtime = end_time - start_time
+mins, secs = divmod(total_runtime, 60)
+print(f"\n Total runtime: {int(mins)} min {secs:.2f} sec")
