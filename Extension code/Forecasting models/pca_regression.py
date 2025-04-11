@@ -229,7 +229,7 @@ def main(n_fwd_components: int, use_macro: bool):
         plt.ylabel("Return Values")
         plt.legend()
         plt.grid(True)
-        plt.show()
+        #plt.show()
         
         
         # Compute model Roos

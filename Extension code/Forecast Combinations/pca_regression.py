@@ -100,6 +100,7 @@ def iterative_pca_regression(er_in: pd.DataFrame,
     X_in = np.hstack([pcs_fwd_in, macro_pcs_in]) if macro_pcs_in is not None else pcs_fwd_in
     y_in = er_in.values
     model = LinearRegression().fit(X_in, y_in)
+    
 
     # Iterate through out-of-sample observations.
     for idx in range(len(fr_out)):
@@ -139,9 +140,12 @@ def iterative_pca_regression(er_in: pd.DataFrame,
             X_in = np.hstack([pcs_fwd_in, macro_pcs_in])
         else:
             X_in = pcs_fwd_in
-
         y_in = er_in.values
-        model.fit(X_in, y_in)
+
+        # Fit with delayed data to avoid data leakage.
+        if idx >= 11:
+            model.fit(X_in[:-11], y_in[:-11])
+
     return pd.Series(predictions, index=er_out.index)
 
 
@@ -149,15 +153,13 @@ def main(n_fwd_components: int, use_macro: bool):
     # Load datasets.
     forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
-    macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
+    macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData1.xlsx") 
+
 
     # Define out-of-sample period.
     start_oos = pd.to_datetime("1990-01-01")
     end_oos = pd.to_datetime("2018-12-01")
 
-    # Convert 'Date' columns to datetime.
-    for df in [forward_rates, excess_returns, macro_data]:
-        df["Date"] = pd.to_datetime(df["Date"])
         
     # Use macro data only if flagged.
     macro_for_split = macro_data if use_macro else None
@@ -170,10 +172,9 @@ def main(n_fwd_components: int, use_macro: bool):
         if data_split[key] is not None:
             data_split[key] = data_split[key].drop(columns="Date")
     
-
+            
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
-    realized = er_out.copy() # For computing IR
     #er_out.to_excel("data-folder/realized_xr.xlsx", index=False)
     fr_in = data_split["forward_rates_in"]
     fr_out = data_split["forward_rates_out"]
@@ -203,6 +204,9 @@ def main(n_fwd_components: int, use_macro: bool):
 
     # Compute benchmark predictions.
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
+    # Save all predictions from all maturity columns as a DataFrame
+    pd.DataFrame(predictions).to_excel("Extension code/Forecast Combinations/Predictions/PCA/PCA_macro.xlsx", index=False)
+    print("Predictions saved to Excel file.")
 
     # Report out-of-sample R2 for each column.
 
@@ -211,6 +215,7 @@ def main(n_fwd_components: int, use_macro: bool):
     for col in predictions:
 
         # Uncomment to plot the predictions
+        
         # Extract the oos date
         dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
@@ -240,6 +245,7 @@ def main(n_fwd_components: int, use_macro: bool):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
+    
 
         
 if __name__ == "__main__":
