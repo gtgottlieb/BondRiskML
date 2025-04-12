@@ -1,34 +1,57 @@
+## Import libraries
+
+# Basic libraries
 import pandas as pd
 import numpy as np
-import Data_preprocessing as data_prep
+import time
+
+# Scikit-learn + tensorflow + keras libraries
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import ParameterGrid
+from sklearn.decomposition import PCA
+
 import tensorflow as tf
-import ModelComparison_Rolling
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Input, Dropout, Concatenate
-from keras.optimizers import SGD
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import load_model
 from tensorflow.keras.regularizers import l1_l2
-from sklearn.model_selection import ParameterGrid
-from sklearn.decomposition import PCA
-import time
 
-## Upload and allign data
+from keras.optimizers import SGD
+
+# Custom libraries
+import Data_preprocessing as data_prep
+import ModelComparison_Rolling
+import HAC_CW_adj_R2_signif_test
+import compute_benchmark
+
+## Set seeds for replication
+tf.random.set_seed(777)
+np.random.seed(777)
+
+## Model setup : taking first differences and/or PCA as input (instead of fwd rates directly), re-estimation frequency
 
 first_differences = False
 pca_as_input = True
+re_estimation_freq = 12 # In months
+extended_sample_period = False
+epochs = 10
 
-# Import yield and macro data, set in dataframe format with 'Date' column 
+## Import + prep the data
+
+# Import yield and macro data
 yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
 forward_rates, xr = data_prep.process_yield_data(yields_df)
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
+
 macro_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Imputted_MacroData.xlsx')
 
-# Set sample period as in Bianchi, later expand to end_date = '2023-11-01'
-start_date = '1971-09-01' 
-end_date = '2018-12-01' # As in Bianchi
-# end_date = '2018-12-01' # Extended
+# Set sample period
+start_date = '1971-08-01' 
+if extended_sample_period:
+    end_date = '2023-12-01' # Most recent
+else:
+    end_date = '2018-12-01' # As in Bianchi
 
 fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
 xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
@@ -48,9 +71,13 @@ if first_differences:
     xr_df = xr_df.loc[valid_index]
     macro_df = macro_df.loc[valid_index]
 
-## Prepare variables
-xr_df, fwd_df, macro_df = xr_df.drop(columns = 'Date'), fwd_df.drop(columns = 'Date'), macro_df.drop(columns = 'Date')
+## Prepare X + Y variables
+fwd_df.set_index('Date', inplace=True)
+xr_df.set_index('Date', inplace=True)
+macro_df.set_index('Date', inplace=True)
+
 Y, X_fwd, X_macro = xr_df.values, fwd_df.values, macro_df.values
+Y_index = xr_df.index 
 
 X_fwd_scaler = MinMaxScaler(feature_range=(-1,1))
 X_macro_scaler = MinMaxScaler(feature_range=(-1,1))
@@ -63,16 +90,14 @@ X_fwd_scaled, X_macro_scaled = X_fwd_scaler.fit_transform(X_fwd), X_macro_scaler
 
 ## Set up and fit NN(1 layer, 3 neurons) model
 
-def NN(X_f, X_m, Y, no, l1l2, dropout_rate, n_epochs=10):
+def NN(X_f, X_m, Y, no, l1l2, dropout_rate, n_epochs=epochs):
+
+    # Split X + Y into train / test sets
     X_f_train, X_m_train, Y_train = X_f[:-1,:], X_m[:-1,:], Y[:-1,:] 
     X_f_test, X_m_test = X_f[-1,:].reshape(1,-1), X_m[-1,:].reshape(1,-1)
     Y_train = np.expand_dims(Y_train, axis=1)
 
-    # Set seeds for replication
-    tf.random.set_seed(777)
-    np.random.seed(777)
-
-    # Set up model architecture (1 hidden layer, 3 neurons)
+    # Set up model architecture (3 hidden layers, 32-16-8 neurons per layer)
     f_input = Input(shape=(X_f_train.shape[1],))
     m_input = Input(shape=(X_m_train.shape[1],))
 
@@ -84,7 +109,6 @@ def NN(X_f, X_m, Y, no, l1l2, dropout_rate, n_epochs=10):
     drop_3 = Dropout(dropout_rate)(hidden_layer_3)
 
     add_f = Concatenate()([drop_3, f_input])
-
     output_layer = Dense(10, activation='linear')(add_f) 
     
     model = Model(inputs=[m_input, f_input], outputs=output_layer)
@@ -109,18 +133,25 @@ def NN(X_f, X_m, Y, no, l1l2, dropout_rate, n_epochs=10):
 
 # Generate predictions
 
+# Set up hyperparameter grid
 param_grid = {
     'l1l2': [0.01, 0.001],
     'dropout_rate': [0.1, 0.3, 0.5]
 }
 
 T = int(Y.shape[0])
-re_estimation_freq = 3 # Re-estimation frequency for NN, in months
-oos_iteration_indeces = range(oos_start_index, T, re_estimation_freq)
+oos_iteration_dates = pd.date_range(start=oos_start_date, 
+                                     end=end_date, 
+                                     freq=f'{re_estimation_freq}MS').normalize()
+
+oos_iteration_indeces = [Y_index.get_loc(date) for date in oos_iteration_dates]
+
+# Set up loop, counters + storage for grid search
 total_iterations = len(ParameterGrid(param_grid)) * (len(oos_iteration_indeces))
 iteration_count = 0
-all_Y_pred = []
 start_time = time.time()
+
+all_Y_pred = []
 
 for i in oos_iteration_indeces:
     best_val_loss = float('inf')
@@ -142,22 +173,29 @@ for i in oos_iteration_indeces:
     
 all_Y_pred = np.vstack(all_Y_pred) 
 
-# Analyze model performance
-Y_test = Y[oos_start_index::re_estimation_freq,:]
+## Analyze model performance
+Y_test_dates = Y_index[oos_iteration_indeces]
+Y_test = Y[oos_iteration_indeces,:]
 
-import HAC_CW_adj_R2_signif_test
-import compute_benchmark
-benchmark = compute_benchmark.compute_benchmark_prediction(Y[:oos_start_index-1,:], Y_test)
-benchmark = benchmark.values.ravel()
+# Silence warning messages for .iloc in significance test (not relevant for now)
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 maturity_names = xr_df.columns.tolist()
 
-if first_differences:
+if first_differences and pca_as_input:
+    print("\n=== Neural Network (3 layers, 32-16-8 neurons per layer) OOS Performance (First Differences + PCA) ===")
+elif first_differences:
     print("\n=== Neural Network (3 layers, 32-16-8 neurons per layer) OOS Performance (First Differences) ===")
+elif pca_as_input:
+    print("\n=== Neural Network (3 layers, 32-16-8 neurons per layer) OOS Performance (PCA) ===")
 else:
     print("\n=== Neural Network (3 layers, 32-16-8 neurons per layer) OOS Performance ===")
 
 for maturity in range(1,Y.shape[1]):
     maturity_name = maturity_names[maturity]
+
+    benchmark = compute_benchmark.compute_benchmark_prediction(Y[:oos_start_index-1, maturity],Y_test[:, maturity]).squeeze()
     r2_oos = ModelComparison_Rolling.R2OOS(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
     mspe = np.mean((Y_test[:, maturity] - all_Y_pred[:, maturity]) ** 2)
     signif_test_stat, signif_p_value = HAC_CW_adj_R2_signif_test.get_CW_adjusted_R2_signif(Y_test[:, maturity], all_Y_pred[:, maturity], benchmark)
@@ -167,4 +205,4 @@ for maturity in range(1,Y.shape[1]):
 end_time = time.time()
 total_runtime = end_time - start_time
 mins, secs = divmod(total_runtime, 60)
-print(f"\n Total runtime: {int(mins)} min {secs:.2f} sec")
+print(f"\n Total runtime: {int(mins)} min {secs:.0f} sec")
