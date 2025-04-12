@@ -4,16 +4,19 @@ from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
 
 # Load the data
-fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/FWD_reg.xlsx")
-Macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/Macro_reg.xlsx")
-rf_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/FWD_rf.xlsx")
-rf_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx")
-preds = {"FWD": fwd_preds, "Macro": Macro_preds, "FWD": rf_fwd_preds, "Macro": rf_macro_preds}
+#fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/FWD_reg.xlsx")
+#Macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/Macro_reg.xlsx")
+#rf_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/FWD_rf.xlsx")
+#rf_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx")
+en_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx")
+en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx")
+preds = {"FWD": en_fwd_preds, "Macro": en_macro_preds}
+         #, "FWD": rf_fwd_preds, "Macro": rf_macro_preds}
 
 benchmark_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx")
 realized = pd.read_excel("Extension code/Forecasting models/Saved preds/realized_xr.xlsx")
 
-models = ["PCA", "Random Forest"]  # We assume only one model for now.
+models = ["Regression"] #, "Random Forest"]  # We assume only one model for now.
 priors = [0, 0.25, 0.5, 0.75]
 inputs = ["FWD", "Macro"]
 

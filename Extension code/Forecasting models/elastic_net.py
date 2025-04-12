@@ -3,27 +3,24 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import IncrementalPCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV
+from sklearn.linear_model import ElasticNet
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
 from compute_benchmark import compute_benchmark_prediction
-from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV
 
 def compute_benchmark_prediction(xr_insample, xr_oos):
     benchmark_preds = []
 
     for i in range(len(xr_oos)):
         combined = pd.concat([xr_insample, xr_oos.iloc[:i+1]]) 
-        #avg_val = combined.mean()  # This computes column-wise means
-        # This computes column-wise means from 12 months before
         avg_val = combined.iloc[:-12].mean() if len(combined) > 12 else combined.mean() 
         benchmark_preds.append(avg_val)
 
-    # Convert list of Series (one per iteration) to a single DataFrames
     return pd.DataFrame(benchmark_preds, index=xr_oos.index)
 
-# Reusable function that performs randomized grid search using the last 15% as validation.
-def refit_rf_model(X, y):
+# Reusable function that performs randomized grid search for ElasticNet
+def refit_en_model(X, y):
     n_samples = X.shape[0]
     test_size = int(np.ceil(0.15 * n_samples))
     train_size = n_samples - test_size
@@ -31,14 +28,12 @@ def refit_rf_model(X, y):
     pre_split = PredefinedSplit(test_fold=test_fold)
     
     param_dist = {
-        "n_estimators": [100, 200],
-        "max_depth": [5, 10, 15],
-        "min_samples_split": [2, 5, 10],
-        "min_samples_leaf": [1, 2, 4],
+        "alpha": [0.001, 0.01, 0.1, 1.0, 10.0],
+        "l1_ratio": [0.1, 0.5, 0.9]
     }
-    rf = RandomForestRegressor(random_state=42)
+    en = ElasticNet(random_state=42, max_iter=10000)
     random_search = RandomizedSearchCV(
-        rf,
+        en,
         param_distributions=param_dist,
         cv=pre_split,
         n_iter=10,
@@ -46,41 +41,22 @@ def refit_rf_model(X, y):
         n_jobs=-1
     )
     random_search.fit(X, y)
-    best_rf = random_search.best_estimator_
-    best_rf.fit(X, y)
-    return best_rf
+    best_en = random_search.best_estimator_
+    best_en.fit(X, y)
+    return best_en
 
 def split_data_by_date(excess_returns: pd.DataFrame,
                        forward_rates: pd.DataFrame,
                        split_date, end_date,
                        macro_data: pd.DataFrame = None) -> dict:
-    """
-    Splits excess returns, forward rates, and optionally macro data into 
-    in-sample and out-of-sample sets. The excess returns are shifted up by 1 year
-
-    Args:
-        excess_returns (pd.DataFrame): DataFrame with a 'Date' column.
-        forward_rates (pd.DataFrame): DataFrame with a 'Date' column.
-        split_date: Start date for the out-of-sample period.
-        end_date: End date for the out-of-sample period.
-        macro_data (pd.DataFrame, optional): DataFrame with a 'Date' column.
-
-    Returns:
-        dict: Dictionary containing in-sample and out-of-sample datasets.
-    """
-
-    # Ensure Date columns are datetime objects.
     excess_returns["Date"] = pd.to_datetime(excess_returns["Date"])
     forward_rates["Date"] = pd.to_datetime(forward_rates["Date"])
     if macro_data is not None:
         macro_data["Date"] = pd.to_datetime(macro_data["Date"])
 
-
-    # Make sure that the excess returns are 1 year ahead of the forward rates and macro data.
     er_split_date = split_date + pd.DateOffset(months=12)
     er_end_date = end_date + pd.DateOffset(months=12)
 
-  
     in_er = excess_returns.loc[excess_returns["Date"] < er_split_date].copy()
     out_er = excess_returns.loc[(excess_returns["Date"] >= er_split_date) &
                                 (excess_returns["Date"] <= er_end_date)].copy()
@@ -105,21 +81,15 @@ def split_data_by_date(excess_returns: pd.DataFrame,
         "macro_data_out": out_macro,
     }
 
-
-def iterative_rf_regression(er_in: pd.DataFrame,
-                             fr_in: pd.DataFrame,
-                             er_out: pd.DataFrame,
-                             fr_out: pd.DataFrame,
-                             macro_in: pd.DataFrame = None,
-                             macro_out: pd.DataFrame = None,
-                             n_macro_components: int = 8) -> pd.Series:
-    """
-    Performs iterative PCA regression with RandomForestRegressor and retrains the model
-    using a reusable randomized grid search function (with last 15% split for CV).
-    """
+def iterative_en_regression(er_in: pd.DataFrame,
+                            fr_in: pd.DataFrame,
+                            er_out: pd.DataFrame,
+                            fr_out: pd.DataFrame,
+                            macro_in: pd.DataFrame = None,
+                            macro_out: pd.DataFrame = None,
+                            n_macro_components: int = 8) -> pd.Series:
     predictions = []
 
-    # Prepare IncrementalPCA for macro data if provided.
     if macro_in is not None:
         macro_scaler = StandardScaler().fit(macro_in)
         scaled_macro_in = macro_scaler.transform(macro_in)
@@ -129,18 +99,12 @@ def iterative_rf_regression(er_in: pd.DataFrame,
     else:
         macro_pcs_in = None
 
-
-    # Combine forward and macro PCs as available.
     X_in = np.hstack([fr_in, macro_pcs_in]) if macro_pcs_in is not None else fr_in
     y_in = er_in.values.flatten()
 
-    
-    # Initial fit with randomized grid search using last 15% as validation.
-    rf = refit_rf_model(X_in, y_in)
+    en_model = refit_en_model(X_in, y_in)
 
-    # Iterate through out-of-sample observations.
     for idx in range(len(er_out)):
-        # Transform current test sample for forward rates.
         fr_test = fr_out.iloc[[idx]]
 
         if macro_in is not None and macro_out is not None:
@@ -151,22 +115,18 @@ def iterative_rf_regression(er_in: pd.DataFrame,
         else:
             X_test = fr_test
 
-        # Predict the new observation.
-        prediction = rf.predict(X_test)[0]
+        prediction = en_model.predict(X_test)[0]
         predictions.append(prediction)
 
-        # Append new observation into in-sample datasets using ignore_index.
         er_in = pd.concat([er_in, er_out.iloc[[idx]]], ignore_index=True)
         fr_in = pd.concat([fr_in, fr_out.iloc[[idx]]], ignore_index=True)
         if macro_in is not None and macro_out is not None:
             macro_in = pd.concat([macro_in, macro_out.iloc[[idx]]], ignore_index=True)
-        
 
         if macro_in is not None:
-            # Refit scaler and update IncrementalPCA for macro data.
             macro_scaler = StandardScaler().fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
-            pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
+            pca_macro.partial_fit(scaled_macro_in[-1:])
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
             X_in = np.hstack([fr_in, macro_pcs_in])
         else:
@@ -174,16 +134,12 @@ def iterative_rf_regression(er_in: pd.DataFrame,
 
         y_in = er_in.values.flatten()
 
-        # Retrain model with updated in-sample data using cross validation.
         if idx >= 11:
-            # Use delayed data (exclude the last 11 observations) to avoid data leakage.
-            rf = refit_rf_model(X_in[:-11], y_in[:-11])
-
+            en_model = refit_en_model(X_in[:-11], y_in[:-11])
 
     return pd.Series(predictions, index=er_out.index)
 
 def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos, model=""):
-    # Extract the oos dates from the xr.xlsx file.
     dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
     dates = pd.to_datetime(dates)
     mask = (dates >= start_oos) & (dates <= end_oos)
@@ -201,85 +157,65 @@ def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos, model="
     plt.show()
 
 def main(use_macro: bool):
-    # Load datasets.
     forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
     macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
 
-    # Define out-of-sample period.
     start_oos = pd.to_datetime("1990-01-01")
     end_oos = pd.to_datetime("2023-11-01")
 
-    # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
         df["Date"] = pd.to_datetime(df["Date"])
-        
-    # Use macro data only if flagged.
+
     macro_for_split = macro_data if use_macro else None
 
-    # Split data into in-sample and out-of-sample.
     data_split = split_data_by_date(excess_returns, forward_rates, start_oos, end_oos, macro_data=macro_for_split)
     
-    # Drop the 'Date' column.
     for key in data_split:
         if data_split[key] is not None:
             data_split[key] = data_split[key].drop(columns="Date")
-    
 
     er_in = data_split["excess_returns_in"]
     er_out = data_split["excess_returns_out"]
-    #realized = er_out.copy() # For computing IR
-    #er_out.to_excel("data-folder/realized_xr.xlsx", index=False)
     fr_in = data_split["forward_rates_in"]
     fr_out = data_split["forward_rates_out"]
     macro_in = data_split["macro_data_in"]
     macro_out = data_split["macro_data_out"]
 
-    # List of columns to predict.
     columns_to_predict = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
     predictions = {}
 
     for col in columns_to_predict:
-        print(f"Running iterative random forest regression for column: {col}")
+        print(f"Running iterative ElasticNet regression for column: {col}")
         er_in_col = er_in[[col]].copy()
         er_out_col = er_out[[col]].copy()
 
-        pred = iterative_rf_regression(
+        pred = iterative_en_regression(
             er_in_col,
             fr_in.copy(),
             er_out_col,
             fr_out.copy(),
             macro_in=macro_in.copy() if macro_in is not None else None,
             macro_out=macro_out.copy() if macro_out is not None else None,
-            n_macro_components=8  # Macro components are fixed at 8
+            n_macro_components=8
         )
         predictions[col] = pred
 
-    # Compute benchmark predictions.
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
 
-    # Report out-of-sample R2 for each column.
-
-    # Store all predictions  
     preds_df = pd.DataFrame()
     benchmark_df = pd.DataFrame()
     for col in predictions:
-
-        # Save predictions
         preds_df[col] = predictions[col]
         benchmark_df[col] = benchmark_preds[col]
 
-        # Save to excel
         if use_macro:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx", index=False)
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx", index=False)
         else:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/FWD_rf.xlsx", index=False)
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx", index=False)
         
+        plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model="ElasticNet")
 
-        # Plot the results using the reusable plotting function.
-        plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model = "Rf")
-
-        # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
         print(f"Out-of-sample R2 for {col}: {r2_value}")
 
@@ -287,11 +223,5 @@ def main(use_macro: bool):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
-
-
-        
 if __name__ == "__main__":
-    # Directly call main with desired parameters.
     main(use_macro=True)
-
-    

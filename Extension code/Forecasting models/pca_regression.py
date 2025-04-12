@@ -265,24 +265,7 @@ def main(n_fwd_components: int, use_macro: bool):
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    #main(n_fwd_components=3, use_macro=False)
-
-    # Run on saved data
-    benchmark = pd.read_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx", index_col=0)
-    realized = pd.read_excel("Extension code/Forecasting models/Saved preds/realized_xr.xlsx", index_col=0)
-    preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/FWD_reg.xlsx", index_col=0)
-
-
-    
-    for col in preds.columns:
-        # Compute model Roos
-        r2_value = r2_oos(realized[col], preds[col], benchmark[col])
-        print(f"Out-of-sample R2 for {col}: {r2_value}")
-
-        # Compute model Roos with Bayesian shrinkage
-        bayes_preds = bayesian_shrinkage(benchmark[col], preds[col])
-        r2_bayes = r2_oos(realized[col], bayes_preds, benchmark[col])
-        print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
+    main(n_fwd_components=3, use_macro=False)
 
 
 

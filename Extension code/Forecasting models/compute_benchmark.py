@@ -15,7 +15,7 @@ def compute_benchmark_prediction(xr_insample, xr_oos):
 
 if __name__ == "__main__":
     # Example usage
-    xr = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
+    xr = pd.read_excel("data-folder/!Data for/xr.xlsx")
     date_split = "1990-01-01"
 
     # Split insample and out-of-sample data
