@@ -164,12 +164,23 @@ def iterative_pca_regression(er_in: pd.DataFrame,
     return pd.Series(predictions, index=er_out.index)
 
 
-def main(n_fwd_components: int, use_macro: bool):
+def main(n_fwd_components: int, use_macro: bool, difference: bool = False):
     # Load datasets.
     forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
     macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
 
+    # Difference the fwd rates to get stationary series.
+    # Preserve the 'Date' column and compute differences for other columns.
+    if difference:
+        diff_fwd = forward_rates.iloc[:,1:] - forward_rates.iloc[:,1:].shift(12)
+        diff_fwd = pd.concat([forward_rates["Date"], diff_fwd], axis=1)
+        diff_fwd = diff_fwd.dropna()
+        forward_rates = diff_fwd.copy()
+        # Drop the first 12 observations of excess returns and macro data.
+        excess_returns = excess_returns.iloc[12:].reset_index(drop=True)
+        if macro_data is not None:
+            macro_data = macro_data.iloc[12:].reset_index(drop=True)
 
     # Define out-of-sample period.
     start_oos = pd.to_datetime("1990-01-01")
@@ -219,18 +230,14 @@ def main(n_fwd_components: int, use_macro: bool):
 
     # Compute benchmark predictions.
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
-    # Save to excel
-    benchmark_preds.to_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx", index=True)
 
     # Report out-of-sample R2 for each column.
-
-    # Store all predictions  
     preds_df = pd.DataFrame()
     for col in predictions:
 
         # Uncomment to plot the predictions
         
-        '''
+        
         # Extract the oos date
         dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
         dates = pd.to_datetime(dates)
@@ -248,7 +255,6 @@ def main(n_fwd_components: int, use_macro: bool):
         plt.legend()
         plt.grid(True)
         plt.show()
-        '''
         
         # Compute model Roos
         # Save preds
@@ -261,11 +267,18 @@ def main(n_fwd_components: int, use_macro: bool):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
+    if use_macro:
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Regression/diff_Macro_en.xlsx", index=False)
+    else:
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Regression/diff_FWD_en.xlsx", index=False)
+
 
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=3, use_macro=False)
+    main(n_fwd_components=3, use_macro=True, difference=True)
+    main(n_fwd_components=3, use_macro=False, difference=True)
+
 
 
 

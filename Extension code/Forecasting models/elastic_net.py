@@ -156,10 +156,20 @@ def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos, model="
     plt.grid(True)
     plt.show()
 
-def main(use_macro: bool):
+def main(use_macro: bool, difference: bool = False):
     forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
     macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
+
+    if difference:
+        diff_fwd = forward_rates.iloc[:,1:] - forward_rates.iloc[:,1:].shift(12)
+        diff_fwd = pd.concat([forward_rates["Date"], diff_fwd], axis=1)
+        diff_fwd = diff_fwd.dropna()
+        forward_rates = diff_fwd.copy()
+        # Drop the first 12 observations of excess returns and macro data.
+        excess_returns = excess_returns.iloc[12:].reset_index(drop=True)
+        if macro_data is not None:
+            macro_data = macro_data.iloc[12:].reset_index(drop=True)
 
     start_oos = pd.to_datetime("1990-01-01")
     end_oos = pd.to_datetime("2023-11-01")
@@ -209,10 +219,7 @@ def main(use_macro: bool):
         preds_df[col] = predictions[col]
         benchmark_df[col] = benchmark_preds[col]
 
-        if use_macro:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx", index=False)
-        else:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx", index=False)
+        
         
         plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model="ElasticNet")
 
@@ -222,6 +229,12 @@ def main(use_macro: bool):
         bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
+    
+    if use_macro:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx", index=False)
+    else:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_FWD_en.xlsx", index=False)
 
 if __name__ == "__main__":
-    main(use_macro=True)
+    main(use_macro=False, difference=True)
+    main(use_macro=True, difference=True)

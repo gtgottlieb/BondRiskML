@@ -200,11 +200,24 @@ def plot_oos_results(actual, predictions, benchmark, start_oos, end_oos, model="
     plt.grid(True)
     plt.show()
 
-def main(use_macro: bool):
+def main(use_macro: bool, difference: bool = False):
     # Load datasets.
     forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
     excess_returns = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
     macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
+
+    # Difference the fwd rates to get stationary series.
+    # Preserve the 'Date' column and compute differences for other columns.
+    if difference:
+        diff_fwd = forward_rates.iloc[:,1:] - forward_rates.iloc[:,1:].shift(12)
+        diff_fwd = pd.concat([forward_rates["Date"], diff_fwd], axis=1)
+        diff_fwd = diff_fwd.dropna()
+        forward_rates = diff_fwd.copy()
+        # Drop the first 12 observations of excess returns and macro data.
+        excess_returns = excess_returns.iloc[12:].reset_index(drop=True)
+        if macro_data is not None:
+            macro_data = macro_data.iloc[12:].reset_index(drop=True)
+
 
     # Define out-of-sample period.
     start_oos = pd.to_datetime("1990-01-01")
@@ -269,11 +282,6 @@ def main(use_macro: bool):
         preds_df[col] = predictions[col]
         benchmark_df[col] = benchmark_preds[col]
 
-        # Save to excel
-        if use_macro:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx", index=False)
-        else:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/FWD_rf.xlsx", index=False)
         
 
         # Plot the results using the reusable plotting function.
@@ -287,11 +295,15 @@ def main(use_macro: bool):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
-
+  # Save to excel
+    if use_macro:
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_Macro_rf.xlsx", index=False)
+    else:
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_FWD_rf.xlsx", index=False)
 
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(use_macro=True)
+    main(use_macro=True, difference=True)
 
     
