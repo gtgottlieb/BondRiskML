@@ -242,6 +242,7 @@ def main(n_fwd_components: int, use_macro: bool):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
+        
     
         
 if __name__ == "__main__":

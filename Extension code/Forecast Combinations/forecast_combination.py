@@ -1,15 +1,15 @@
 import numpy as np
 import pandas as pd
 
-from pca_regression import iterative_pca_regression, split_data_by_date
+from pca_regression import split_data_by_date
 from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
-from bayesian_shrinkage import bayesian_shrinkage
-from random_forest import iterative_rf_regression  # Ensure this function is defined or imported
+from sklearn.linear_model import LinearRegression  # Meta-model for stacking
+from sklearn.neural_network import MLPRegressor
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
-###############################################################################
-# 1. Forecast Combination Methods
-###############################################################################
 def simple_average_forecast(forecasts):
 
     return np.mean(forecasts, axis=0)
@@ -30,6 +30,51 @@ def weighted_average_forecast(forecasts, actual):
     for w, forecast in zip(weights, forecasts):
         combined += w * forecast
     return combined
+
+def linear_stacking(forecasts, actual):
+    combined_forecast = []
+    X = np.column_stack(forecasts)
+    for i in range(len(actual)):
+        if i <= 11:
+            # Use equal weights for the first few predictions
+            combined_forecast.append(np.mean(X[i, :]))
+        else:
+            # Train meta-model on past data only if sufficient data is available
+            meta_model = LinearRegression()
+            meta_model.fit(X[:i-11, :], actual[:i-11])
+            # Predict for the current point
+            combined_forecast.append(meta_model.predict(X[i, :].reshape(1, -1))[0])
+    return np.array(combined_forecast)
+
+def neural_network_stacking(forecasts, actual):
+    """
+    Combine forecasts using a neural network meta-model (stacked regression)
+    with iterative training. For the first few observations (i <= 11),
+    use equal weighting.
+    
+    Parameters:
+        forecasts (list of np.ndarray): List of forecast arrays from different models.
+        actual (np.ndarray): Actual observed values to train the meta-model.
+    Returns:
+        np.ndarray: Combined forecast using the neural network meta-model.
+    """
+    combined_forecast = []
+    X = np.column_stack(forecasts)
+    for i in range(len(actual)):
+        if i <= 11:
+            # Use equal weights for the first few predictions
+            combined_forecast.append(np.mean(X[i, :]))
+        else:
+            # Train a simple neural network as meta-model using only past data
+            nn_model = MLPRegressor(hidden_layer_sizes=(3,),
+                                    activation='relu',
+                                    solver='adam',
+                                    random_state=42,
+                                    max_iter=500)
+            nn_model.fit(X[:i-11, :], actual[:i-11])
+            # Predict for the current point
+            combined_forecast.append(nn_model.predict(X[i, :].reshape(1, -1))[0])
+    return np.array(combined_forecast)
 
 
 if __name__ == "__main__":
@@ -69,20 +114,28 @@ if __name__ == "__main__":
     # Calculate benchmark predictions using in-sample and out-of-sample excess returns
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
     
+    # Define burn-in period (approx 10 years for monthly data)
+    burn_in = 120
+
     # Calculate and print OOS R² scores for each maturity column for both prediction sets")
     for col in predictions_1.columns:
-        r2_pca = r2_oos(er_out[col].values, predictions_1[col].values, benchmark_preds[col].values)
-        r2_rf  = r2_oos(er_out[col].values, predictions_2[col].values, benchmark_preds[col].values)
+        # Calculate benchmark predictions for each column skipping burn-in period...
+        r2_pca = r2_oos(er_out[col].values[burn_in:], predictions_1[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
+        r2_rf  = r2_oos(er_out[col].values[burn_in:], predictions_2[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
         print(f"Column {col} - PCA OOS R²: {r2_pca:.4f}, RF OOS R²: {r2_rf:.4f}")
         
-        # Combine forecasts from PCA and RF using simple and weighted average methods.
+        # Combine forecasts from PCA and RF using simple, weighted average, and stacking methods.
         forecasts = [predictions_1[col].values, predictions_2[col].values]
         simple_combo = simple_average_forecast(forecasts)
-        weighted_combo = weighted_average_forecast(forecasts, er_out[col].values)
+        #weighted_combo = weighted_average_forecast(forecasts, er_out[col].values)
+        stacked_combo = linear_stacking(forecasts, er_out[col].values)
+        neural_combo = neural_network_stacking(forecasts, er_out[col].values)
         
-        # Compute OOS R² scores for the combined forecasts.
-        r2_simple = r2_oos(er_out[col].values, simple_combo, benchmark_preds[col].values)
-        r2_weighted = r2_oos(er_out[col].values, weighted_combo, benchmark_preds[col].values)
-        
-        print(f"Column {col} - Simple Average Combo OOS R²: {r2_simple:.4f}, Weighted Average Combo OOS R²: {r2_weighted:.4f}")
+        # Compute OOS R² scores for the combined forecasts after the burn-in period.
+        r2_simple = r2_oos(er_out[col].values[burn_in:], simple_combo[burn_in:], benchmark_preds[col].values[burn_in:])
+        #r2_weighted = r2_oos(er_out[col].values[burn_in:], weighted_combo[burn_in:], benchmark_preds[col].values[burn_in:])
+        r2_linear = r2_oos(er_out[col].values[burn_in:], stacked_combo[burn_in:], benchmark_preds[col].values[burn_in:])
+        r2_neural = r2_oos(er_out[col].values[burn_in:], neural_combo[burn_in:], benchmark_preds[col].values[burn_in:])
+
+        print(f"Column {col} - Avg R²: {r2_simple:.4f}, Linear R²: {r2_linear:.4f}, NN R²: {r2_neural:.4f}")
 
