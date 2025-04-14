@@ -1,4 +1,10 @@
-0. PCA + Benchmark
+0. NEW NEURAL NET - 1 LAYER - 500 EPOCHS
+Out-of-sample R2 for 2 y: -0.0031906514922095397
+Out-of-sample R2 for 3 y: 0.014043559020246899
+Out-of-sample R2 for 4 y: 0.0035790895453696736
+Out-of-sample R2 for 5 y: -0.0026388588543861946
+Out-of-sample R2 for 7 y: -0.012541141359033059
+Out-of-sample R2 for 10 y: 0.032468734858246306
 
 1. PCA + RANDOM FOREST:
 FWD regular:

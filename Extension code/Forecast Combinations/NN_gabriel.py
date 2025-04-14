@@ -9,36 +9,6 @@ import warnings
 from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
-def neural_network_stacking(forecasts, actual):
-    """
-    Combine forecasts using a neural network meta-model (stacked regression)
-    with iterative training. For the first few observations (i <= 11),
-    use equal weighting.
-    
-    Parameters:
-        forecasts (list of np.ndarray): List of forecast arrays from different models.
-        actual (np.ndarray): Actual observed values to train the meta-model.
-    Returns:
-        np.ndarray: Combined forecast using the neural network meta-model.
-    """
-    combined_forecast = []
-    X = np.column_stack(forecasts)
-    for i in range(len(actual)):
-        if i <= 11:
-            # Use equal weights for the first few predictions
-            combined_forecast.append(np.mean(X[i, :]))
-        else:
-            # Train a simple neural network as meta-model using only past data
-            nn_model = MLPRegressor(hidden_layer_sizes=(3,),
-                                    activation='relu',
-                                    solver='adam',
-                                    random_state=42,
-                                    max_iter=500)
-            nn_model.fit(X[:i-11, :], actual[:i-11])
-            # Predict for the current point
-            combined_forecast.append(nn_model.predict(X[i, :].reshape(1, -1))[0])
-    return np.array(combined_forecast)
-
 def iterative_nn_regression(er_in: pd.DataFrame,
                             fr_in: pd.DataFrame,
                             er_out: pd.DataFrame,
@@ -66,7 +36,7 @@ def iterative_nn_regression(er_in: pd.DataFrame,
         else:
             X_train = X_in[:-11]  # use training data excluding the most recent 11 observations
             y_train = y_in[:-11]
-            nn_model = MLPRegressor(hidden_layer_sizes=(1,),
+            nn_model = MLPRegressor(hidden_layer_sizes=(3,),
                                     activation='relu',
                                     solver='adam',
                                     random_state=42,
