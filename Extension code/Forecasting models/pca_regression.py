@@ -233,16 +233,12 @@ def main(n_fwd_components: int, use_macro: bool, difference: bool = False):
 
     # Report out-of-sample R2 for each column.
     preds_df = pd.DataFrame()
+    dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
+    dates = pd.to_datetime(dates)
+    mask = (dates >= start_oos) & (dates <= end_oos)
+    dates = dates.loc[mask].reset_index(drop=True)
+    dates.to_excel("Extension code/Forecasting models/Saved preds/dates.xlsx", index=False)
     for col in predictions:
-
-        # Uncomment to plot the predictions
-        
-        
-        # Extract the oos date
-        dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
-        dates = pd.to_datetime(dates)
-        mask = (dates >= start_oos) & (dates <= end_oos)
-        dates = dates.loc[mask].reset_index(drop=True)
 
         # Plot the predictions vs benchmark vs actuals for each column.
         plt.figure(figsize=(10, 6))
@@ -267,17 +263,18 @@ def main(n_fwd_components: int, use_macro: bool, difference: bool = False):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
+    '''
     if use_macro:
-        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Regression/diff_Macro_en.xlsx", index=False)
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Regression preds/diff_Macro.xlsx", index=False)
     else:
-        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Regression/diff_FWD_en.xlsx", index=False)
-
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Regression preds/diff_FWD.xlsx", index=False)
+    '''
 
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
-    main(n_fwd_components=3, use_macro=True, difference=True)
-    main(n_fwd_components=3, use_macro=False, difference=True)
+    main(n_fwd_components=3, use_macro=False, difference=False)
+    #main(n_fwd_components=3, use_macro=False, difference=True)
 
 
 

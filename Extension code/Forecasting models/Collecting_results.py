@@ -6,11 +6,15 @@ from bayesian_shrinkage import bayesian_shrinkage
 # Load the data
 #fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/FWD_reg.xlsx")
 #Macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/Macro_reg.xlsx")
-#rf_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/FWD_rf.xlsx")
-#rf_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx")
-en_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx")
-en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx")
-preds = {"FWD": en_fwd_preds, "Macro": en_macro_preds}
+rf_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_FWD_rf.xlsx")
+rf_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_Macro_rf.xlsx")
+#en_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx")
+#en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx")
+
+#en_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_FWD_en.xlsx")
+#en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx")
+
+preds = {"FWD": rf_fwd_preds, "Macro": rf_macro_preds}
          #, "FWD": rf_fwd_preds, "Macro": rf_macro_preds}
 
 benchmark_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx")
