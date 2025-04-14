@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     # Define out-of-sample period.
     start_oos = pd.to_datetime("1990-01-01")
-    end_oos = pd.to_datetime("2018-12-01")
+    end_oos = pd.to_datetime("2023-12-01")
 
     # Convert 'Date' columns to datetime.
     for df in [forward_rates, excess_returns, macro_data]:
@@ -108,12 +108,15 @@ if __name__ == "__main__":
     fr_out = data_split["forward_rates_out"]
 
     # Load predictions (as excel sheets or call the function)
-    predictions_1 = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/PCA_fwd.xlsx")
-    predictions_2 = pd.read_excel("Extension code/Forecast Combinations/Predictions/Random forest/FWD only/FWD_rf.xlsx")
+    predictions_1 = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/FWD_reg.xlsx")
+    predictions_2 = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/FWD_en.xlsx")
 
     # Calculate benchmark predictions using in-sample and out-of-sample excess returns
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
-    
+
+    ### DELETE ME!!!
+    predictions_2 = benchmark_preds
+
     # Define burn-in period (approx 10 years for monthly data)
     burn_in = 120
 
@@ -122,7 +125,7 @@ if __name__ == "__main__":
         # Calculate benchmark predictions for each column skipping burn-in period...
         r2_pca = r2_oos(er_out[col].values[burn_in:], predictions_1[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
         r2_rf  = r2_oos(er_out[col].values[burn_in:], predictions_2[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
-        print(f"Column {col} - PCA OOS R²: {r2_pca:.4f}, RF OOS R²: {r2_rf:.4f}")
+        print(f"Column {col} - PCA R²: {r2_pca:.4f}, RF R²: {r2_rf:.4f}")
         
         # Combine forecasts from PCA and RF using simple, weighted average, and stacking methods.
         forecasts = [predictions_1[col].values, predictions_2[col].values]

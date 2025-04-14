@@ -1,86 +1,69 @@
-USING NNFuncBib.py and run_elasticnet.py
-=============================================
-Lasso (elastic net w/ l1_ratio = 1):
-======
-24 m: -0.1541
-36 m: -0.0950
-48 m: -0.0831
-60 m: -0.0969
-84 m: -0.1218
-120 m: -0.0740
+0. PCA + Benchmark
 
+1. PCA + RANDOM FOREST:
+FWD regular:
+Column 2 y - Avg R²: -0.3759, Linear R²: -0.3944, NN R²: -0.1189
+Column 3 y - PCA OOS R²: -0.2986, RF OOS R²: -0.7532
+Column 3 y - Avg R²: -0.4600, Linear R²: -0.3649, NN R²: -0.0707
+Column 4 y - PCA OOS R²: -0.2888, RF OOS R²: -0.8121
+Column 4 y - Avg R²: -0.4674, Linear R²: -0.2625, NN R²: -0.0447
+Column 5 y - PCA OOS R²: -0.2374, RF OOS R²: -0.8024
+Column 5 y - Avg R²: -0.4288, Linear R²: -0.1876, NN R²: 0.0026
+Column 7 y - PCA OOS R²: -0.2055, RF OOS R²: -0.7323
+Column 7 y - Avg R²: -0.3575, Linear R²: -0.0437, NN R²: 0.1107
+Column 10 y - PCA OOS R²: -0.0965, RF OOS R²: -0.5641
+Column 10 y - Avg R²: -0.2092, Linear R²: 0.0919, NN R²: 0.1729
+MACRO regular:
+Column 2 y - PCA OOS R²: -0.6370, RF OOS R²: -0.2666
+Column 2 y - Avg R²: -0.0962, Linear R²: -0.3624, NN R²: -0.1720
+Column 3 y - PCA OOS R²: -0.6598, RF OOS R²: -0.3784
+Column 3 y - Avg R²: -0.1591, Linear R²: -0.2778, NN R²: -0.2326
+Column 4 y - PCA OOS R²: -0.6906, RF OOS R²: -0.4817
+Column 4 y - Avg R²: -0.1895, Linear R²: -0.1748, NN R²: -0.1761
+Column 5 y - PCA OOS R²: -0.6720, RF OOS R²: -0.5472
+Column 5 y - Avg R²: -0.1832, Linear R²: -0.1152, NN R²: -0.1310
+Column 7 y - PCA OOS R²: -0.6837, RF OOS R²: -0.5460
+Column 7 y - Avg R²: -0.1662, Linear R²: -0.0608, NN R²: -0.0774
+Column 10 y - PCA OOS R²: -0.6305, RF OOS R²: -0.4521
+Column 10 y - Avg R²: -0.1181, Linear R²: -0.0498, NN R²: -0.0359
+FWD differenced:
+Column 2 y - PCA R²: 0.0983, RF R²: -0.0100
+Column 2 y - Avg R²: 0.1094, Linear R²: -0.0390, NN R²: -0.0824
+Column 3 y - PCA R²: 0.0806, RF R²: 0.0289
+Column 3 y - Avg R²: 0.1104, Linear R²: -0.0693, NN R²: -0.0558
+Column 4 y - PCA R²: 0.0543, RF R²: -0.0051
+Column 4 y - Avg R²: 0.0800, Linear R²: -0.0656, NN R²: -0.0411
+Column 5 y - PCA R²: 0.0444, RF R²: -0.0190
+Column 5 y - Avg R²: 0.0608, Linear R²: -0.0607, NN R²: -0.0632
+Column 7 y - PCA R²: 0.0203, RF R²: -0.0429
+Column 7 y - Avg R²: 0.0327, Linear R²: -0.0665, NN R²: -0.0960
+Column 10 y - PCA R²: 0.0263, RF R²: -0.0542
+Column 10 y - Avg R²: 0.0272, Linear R²: -0.0763, NN R²: -0.1352
+Macro differenced:
+Column 2 y - PCA R²: -0.0621, RF R²: -0.1607
+Column 2 y - Avg R²: 0.1105, Linear R²: -0.1283, NN R²: -0.0869
+Column 3 y - PCA R²: -0.1453, RF R²: -0.2261
+Column 3 y - Avg R²: 0.0158, Linear R²: -0.2205, NN R²: -0.0965
+Column 4 y - PCA R²: -0.2663, RF R²: -0.2420
+Column 4 y - Avg R²: -0.0459, Linear R²: -0.2487, NN R²: -0.0616
+Column 5 y - PCA R²: -0.3336, RF R²: -0.2381
+Column 5 y - Avg R²: -0.0719, Linear R²: -0.2163, NN R²: -0.2203
+Column 7 y - PCA R²: -0.4345, RF R²: -0.3006
+Column 7 y - Avg R²: -0.1295, Linear R²: -0.1585, NN R²: -0.1414
+Column 10 y - PCA R²: -0.5120, RF R²: -0.2151
+Column 10 y - Avg R²: -0.1059, Linear R²: -0.0913, NN R²: -0.1760
 
-Ridge (elastic net w/ l1_ratio ~= 0):
-======
-24 m: -0.1619
-36 m: -0.1219
-48 m: -0.0933
-60 m: -0.1136
-84 m: -0.1329
-120 m: -0.1212
-
-
-Optimal elastic net:
-======
-24 m: -0.1541
-36 m: -0.0950
-48 m: -0.0831
-60 m: -0.0969
-84 m: -0.1218
-120 m: -0.0740
-
-
-Using elasticNet_regression.py
-==============================
-
-Lasso:
-Elastic Net Results (OOS R²):
-
-
-Diagnostics for 24m:
-→ Std. dev of actual returns:     0.0125
-→ Std. dev of predicted returns:  0.0036
-→ Model MSE:                      0.060620
-→ Benchmark MSE:                  0.052810
-→ Avg. non-zero coefficients:     1.39
-24m: -0.1479
-
-Diagnostics for 36m:
-→ Std. dev of actual returns:     0.0237
-→ Std. dev of predicted returns:  0.0081
-→ Model MSE:                      0.206355
-→ Benchmark MSE:                  0.190382
-→ Avg. non-zero coefficients:     1.71
-36m: -0.0839
-
-Diagnostics for 48m:
-→ Std. dev of actual returns:     0.0332
-→ Std. dev of predicted returns:  0.0123
-→ Model MSE:                      0.391162
-→ Benchmark MSE:                  0.373999
-→ Avg. non-zero coefficients:     1.90
-48m: -0.0459
-
-Diagnostics for 60m:
-→ Std. dev of actual returns:     0.0415
-→ Std. dev of predicted returns:  0.0159
-→ Model MSE:                      0.620929
-→ Benchmark MSE:                  0.584390
-→ Avg. non-zero coefficients:     2.10
-60m: -0.0625
-
-Diagnostics for 84m:
-→ Std. dev of actual returns:     0.0564
-→ Std. dev of predicted returns:  0.0227
-→ Model MSE:                      1.153013
-→ Benchmark MSE:                  1.079766
-→ Avg. non-zero coefficients:     2.21
-84m: -0.0678
-
-Diagnostics for 120m:
-→ Std. dev of actual returns:     0.0758
-→ Std. dev of predicted returns:  0.0324
-→ Model MSE:                      1.939437
-→ Benchmark MSE:                  1.946468
-→ Avg. non-zero coefficients:     2.56
-120m: 0.0036
+2. PCA + ElasticNet:
+FWD regular
+Column 2 y - PCA R²: -0.3027, ElasticNet R²: -0.2258
+Column 2 y - Avg R²: -0.2113, Linear R²: -0.1453, NN R²: -0.0749
+Column 3 y - PCA R²: -0.2986, ELasticNet R²: -0.2261
+Column 3 y - Avg R²: -0.2170, Linear R²: -0.1286, NN R²: -0.0570
+Column 4 y - PCA R²: -0.2888, ElasticNet R²: -0.2473
+Column 4 y - Avg R²: -0.2110, Linear R²: -0.0987, NN R²: 0.0216
+Column 5 y - PCA R²: -0.2374, ElasticNet R²: -0.2267
+Column 5 y - Avg R²: -0.1774, Linear R²: -0.0548, NN R²: 0.0499
+Column 7 y - PCA R²: -0.2055, ElasticNet R²: -0.2723
+Column 7 y - Avg R²: -0.1763, Linear R²: 0.0504, NN R²: 0.1347
+Column 10 y - PCA R²: -0.0965, ElasticNet R²: -0.2790
+Column 10 y - Avg R²: -0.1103, Linear R²: 0.1544, NN R²: 0.2471
