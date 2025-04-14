@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+import matplotlib.pyplot as plt
 from pca_regression import split_data_by_date
 from compute_benchmark import compute_benchmark_prediction
 from Roos import r2_oos
@@ -8,6 +8,7 @@ from sklearn.neural_network import MLPRegressor
 import warnings
 from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
 
 def iterative_nn_regression(er_in: pd.DataFrame,
                             fr_in: pd.DataFrame,
@@ -104,11 +105,33 @@ if __name__ == "__main__":
         )
         predictions[col] = pred
 
+        # Extract the oos date
+        dates = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx", usecols=["Date"])["Date"]
+        dates = pd.to_datetime(dates)
+        mask = (dates >= start_oos) & (dates <= end_oos)
+        dates = dates.loc[mask].reset_index(drop=True)
+
+        
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
         print(f"Out-of-sample R2 for {col}: {r2_value}")
+
+        # Ensure dates length matches the out-of-sample series length.
+        if len(dates) > len(er_out[col].values):
+            dates = dates.iloc[:len(er_out[col].values)]
+        # Plot the predictions vs benchmark vs actuals for each column.
+        plt.figure(figsize=(10, 6))
+        plt.plot(dates, er_out[col].values, linestyle='--', label="Actual")
+        plt.plot(dates, predictions[col].values, linestyle='-.', label="PCA Predictions")
+        plt.plot(dates, benchmark_preds[col].values, linestyle='-', label="Benchmark")
+        plt.title(f"Out-of-Sample Comparison for {col}")
+        plt.xlabel("Date")
+        plt.ylabel("Return Values")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
 
 
     # Compute benchmark predictions.
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
     # Save all predictions from all maturity columns as a DataFrame
-    
