@@ -6,15 +6,15 @@ from bayesian_shrinkage import bayesian_shrinkage
 # Load the data
 #fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/FWD_reg.xlsx")
 #Macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression/Macro_reg.xlsx")
-rf_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_FWD_rf.xlsx")
-rf_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_Macro_rf.xlsx")
+en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx")
+en_diff_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx")
 #en_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx")
 #en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx")
 
 #en_fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_FWD_en.xlsx")
 #en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx")
 
-preds = {"FWD": rf_fwd_preds, "Macro": rf_macro_preds}
+preds = {"Macro": en_macro_preds, "Diff Macro": en_diff_macro_preds}
          #, "FWD": rf_fwd_preds, "Macro": rf_macro_preds}
 
 benchmark_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx")
@@ -22,7 +22,7 @@ realized = pd.read_excel("Extension code/Forecasting models/Saved preds/realized
 
 models = ["Regression"] #, "Random Forest"]  # We assume only one model for now.
 priors = [0, 0.25, 0.5, 0.75]
-inputs = ["FWD", "Macro"]
+inputs = ["Macro", "diff Macro"]
 
 # Define the horizons you want to compute Roos for.
 horizons = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]

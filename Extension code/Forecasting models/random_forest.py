@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import IncrementalPCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestRegressor
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
@@ -121,7 +121,7 @@ def iterative_rf_regression(er_in: pd.DataFrame,
 
     # Prepare IncrementalPCA for macro data if provided.
     if macro_in is not None:
-        macro_scaler = StandardScaler().fit(macro_in)
+        macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
         scaled_macro_in = macro_scaler.transform(macro_in)
         pca_macro = IncrementalPCA(n_components=n_macro_components)
         pca_macro.fit(scaled_macro_in)
@@ -164,7 +164,7 @@ def iterative_rf_regression(er_in: pd.DataFrame,
 
         if macro_in is not None:
             # Refit scaler and update IncrementalPCA for macro data.
-            macro_scaler = StandardScaler().fit(macro_in)
+            macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
             pca_macro.partial_fit(scaled_macro_in[-1:])  # partial update on the last row.
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
@@ -296,14 +296,16 @@ def main(use_macro: bool, difference: bool = False):
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
   # Save to excel
-    if use_macro:
+    if difference:
         preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_Macro_rf.xlsx", index=False)
     else:
-        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_FWD_rf.xlsx", index=False)
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx", index=False)
 
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
+    # Run it tomorrow!!
     main(use_macro=True, difference=True)
+    main(use_macro=True, difference=False)
 
     

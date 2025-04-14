@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import IncrementalPCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV
 from sklearn.linear_model import ElasticNet
 from Roos import r2_oos
@@ -91,7 +91,7 @@ def iterative_en_regression(er_in: pd.DataFrame,
     predictions = []
 
     if macro_in is not None:
-        macro_scaler = StandardScaler().fit(macro_in)
+        macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
         scaled_macro_in = macro_scaler.transform(macro_in)
         pca_macro = IncrementalPCA(n_components=n_macro_components)
         pca_macro.fit(scaled_macro_in)
@@ -124,7 +124,7 @@ def iterative_en_regression(er_in: pd.DataFrame,
             macro_in = pd.concat([macro_in, macro_out.iloc[[idx]]], ignore_index=True)
 
         if macro_in is not None:
-            macro_scaler = StandardScaler().fit(macro_in)
+            macro_scaler = MinMaxScaler(feature_range=(-1,1)).fit(macro_in)
             scaled_macro_in = macro_scaler.transform(macro_in)
             pca_macro.partial_fit(scaled_macro_in[-1:])
             macro_pcs_in = pca_macro.transform(scaled_macro_in)
@@ -221,7 +221,7 @@ def main(use_macro: bool, difference: bool = False):
 
         
         
-        plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model="ElasticNet")
+        #plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model="ElasticNet")
 
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
         print(f"Out-of-sample R2 for {col}: {r2_value}")
@@ -230,11 +230,11 @@ def main(use_macro: bool, difference: bool = False):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
     
-    if use_macro:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx", index=False)
+    if difference:
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx", index=False)         
     else:
-            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_FWD_en.xlsx", index=False)
-
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx", index=False)
+    
 if __name__ == "__main__":
-    main(use_macro=False, difference=True)
+    main(use_macro=True, difference=False)
     main(use_macro=True, difference=True)
