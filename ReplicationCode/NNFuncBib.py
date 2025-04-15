@@ -232,9 +232,9 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
     Y_train = Y.iloc[:-1,:]
     X_test = X.iloc[-1,:].values.reshape(1,-1)
     Xexog_test = Xexog.iloc[-1,:].values.reshape(1,-1)
+ 
 
-
-    #Scale the predictors for training
+    #Scale the predictorsfor training
     Xscaler_train = MinMaxScaler(feature_range=(-1,1))
     X_scaled_train = Xscaler_train.fit_transform(X_train)
     X_scaled_train = np.expand_dims(X_scaled_train, axis=1)
@@ -322,7 +322,7 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
 
         model.compile(loss='mean_squared_error', optimizer=sgd_fine)
         history=model.fit(X_scaled_train_grouped+[Xexog_scaled_train], Y_train,
-                          epochs=500, callbacks=[earlystopping,mcp],
+                          epochs=50, callbacks=[earlystopping,mcp],
                           validation_split=0.15, batch_size=32, shuffle=True,
                           verbose=0)
 

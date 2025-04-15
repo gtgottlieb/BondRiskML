@@ -32,18 +32,18 @@ def iterative_nn_regression(er_in: pd.DataFrame,
             X_test = np.hstack([fr_out.iloc[[i]].values, macro_out.iloc[[i]].values])
         else:
             X_test = fr_out.iloc[[i]].values
-        if i <= 11 or len(X_in) <= 11:
-            pred = np.mean(y_in)
-        else:
-            X_train = X_in[:-11]  # use training data excluding the most recent 11 observations
-            y_train = y_in[:-11]
-            nn_model = MLPRegressor(hidden_layer_sizes=(3,),
-                                    activation='relu',
-                                    solver='adam',
-                                    random_state=42,
-                                    max_iter=500)
-            nn_model.fit(X_train, y_train)
-            pred = nn_model.predict(X_test)[0]
+        
+        X_train = X_in  
+        y_train = y_in
+        nn_model = MLPRegressor(hidden_layer_sizes=(3,3),
+                                activation='relu',
+                                solver='adam',
+                                learning_rate='adaptive',
+                                validation_fraction=0.15,
+                                random_state=42,
+                                max_iter=500)
+        nn_model.fit(X_train, y_train)
+        pred = nn_model.predict(X_test)[0]        
         predictions.append(pred)
         # Expand the training data with the newly observed out-of-sample point.
         new_feat = fr_out.iloc[[i]].values
@@ -68,6 +68,7 @@ if __name__ == "__main__":
         df["Date"] = pd.to_datetime(df["Date"])
         
     # Split data into in-sample and out-of-sample.
+    # Use macro data only if flagged.
     data_split = split_data_by_date(excess_returns, forward_rates, start_oos, end_oos, macro_data=None)
     
     # Drop the 'Date' column.

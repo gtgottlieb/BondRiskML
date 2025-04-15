@@ -127,11 +127,9 @@ if __name__ == "__main__":
             i += 1
 
     # Set of models for training
-    models = [NFB.ElasticNet_Exog_Plain, NFB.NN1LayerEnsemExog,
-              NFB.NN3LayerExog]
+    models = [NFB.NN1LayerEnsemExog]
     # Set of names to use for models. Same order as in list "models".
-    modelnames = ['ElasticNetExog_Plain', 'NN1LayerEnsemExog',
-                  'NN3LayerExog']
+    modelnames = ['NN1LayerEnsemExog']
 
     # =========================================================================
     #                          Data Loading

@@ -107,38 +107,38 @@ if __name__ == "__main__":
     fr_in = data_split["forward_rates_in"]
     fr_out = data_split["forward_rates_out"]
 
-    # Load predictions (as excel sheets or call the function)
-    predictions_1 = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/FWD_reg.xlsx")
-    predictions_2 = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/FWD_en.xlsx")
-
+    # Instead of hardcoding two predictions, define a list of prediction file paths.
+    prediction_files = [
+        "Extension code/Forecast Combinations/Predictions/PCA/FWD_reg.xlsx",
+        "Extension code/Forecast Combinations/Predictions/RF/FWD_rf.xlsx",
+        "Extension code/Forecast Combinations/Predictions/ElasticNet/FWD_en.xlsx",
+    ]
+    predictions_list = [pd.read_excel(f) for f in prediction_files]
+    
     # Calculate benchmark predictions using in-sample and out-of-sample excess returns
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
-
-    ### DELETE ME!!!
-    predictions_2 = benchmark_preds
 
     # Define burn-in period (approx 10 years for monthly data)
     burn_in = 120
 
-    # Calculate and print OOS R² scores for each maturity column for both prediction sets")
-    for col in predictions_1.columns:
-        # Calculate benchmark predictions for each column skipping burn-in period...
-        r2_pca = r2_oos(er_out[col].values[burn_in:], predictions_1[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
-        r2_rf  = r2_oos(er_out[col].values[burn_in:], predictions_2[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
-        print(f"Column {col} - PCA R²: {r2_pca:.4f}, RF R²: {r2_rf:.4f}")
-        
-        # Combine forecasts from PCA and RF using simple, weighted average, and stacking methods.
-        forecasts = [predictions_1[col].values, predictions_2[col].values]
+    # Loop over each maturity column (use first predictions dataframe columns)
+    for col in predictions_list[0].columns:
+        # Calculate OOS R² for each individual prediction input after burn-in.])
+        for idx, pred_df in enumerate(predictions_list):
+            r2_val = r2_oos(er_out[col].values[burn_in:], pred_df[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
+            print(f"Column {col} - Prediction {idx+1} OOS R²: {r2_val:.4f}")
+
+        # Combine forecasts from all prediction sources.
+        # Create a list of forecast arrays (each prediction column as a numpy array).
+        forecasts = [pred_df[col].values for pred_df in predictions_list]
         simple_combo = simple_average_forecast(forecasts)
-        #weighted_combo = weighted_average_forecast(forecasts, er_out[col].values)
         stacked_combo = linear_stacking(forecasts, er_out[col].values)
         neural_combo = neural_network_stacking(forecasts, er_out[col].values)
         
-        # Compute OOS R² scores for the combined forecasts after the burn-in period.
+        # Compute combined OOS R² scores after burn-in.
         r2_simple = r2_oos(er_out[col].values[burn_in:], simple_combo[burn_in:], benchmark_preds[col].values[burn_in:])
-        #r2_weighted = r2_oos(er_out[col].values[burn_in:], weighted_combo[burn_in:], benchmark_preds[col].values[burn_in:])
         r2_linear = r2_oos(er_out[col].values[burn_in:], stacked_combo[burn_in:], benchmark_preds[col].values[burn_in:])
         r2_neural = r2_oos(er_out[col].values[burn_in:], neural_combo[burn_in:], benchmark_preds[col].values[burn_in:])
 
-        print(f"Column {col} - Avg R²: {r2_simple:.4f}, Linear R²: {r2_linear:.4f}, NN R²: {r2_neural:.4f}")
+        print(f"Column {col} - Combined Avg R²: {r2_simple:.4f}, Linear R²: {r2_linear:.4f}, NN R²: {r2_neural:.4f}")
 

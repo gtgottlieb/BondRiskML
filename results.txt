@@ -1,13 +1,26 @@
 0. NEW NEURAL NET - 
-1 LAYER - 500 EPOCHS
+1 LAYER 1 NEURON - 500 EPOCHS
 Out-of-sample R2 for 2 y: -0.0031906514922095397
 Out-of-sample R2 for 3 y: 0.014043559020246899
 Out-of-sample R2 for 4 y: 0.0035790895453696736
 Out-of-sample R2 for 5 y: -0.0026388588543861946
 Out-of-sample R2 for 7 y: -0.012541141359033059
 Out-of-sample R2 for 10 y: 0.032468734858246306
-3 LAYER - 500 EPOCHS
+1 LAYER 3 NEURON - 500 EPOCHS
 Out-of-sample R2 for 2 y: -0.011223489991778468
+Out-of-sample R2 for 3 y: -0.061198366338137244
+Out-of-sample R2 for 4 y: -0.07681230455611265
+Out-of-sample R2 for 5 y: -0.07229763558790325
+Out-of-sample R2 for 7 y: -0.06858151780737476
+Out-of-sample R2 for 10 y: -0.05780530052695365
+3 LAYER 3 NEURON - 500 EPOCHS
+Out-of-sample R2 for 2 y: -0.042301216761648996
+Out-of-sample R2 for 3 y: -0.05103456334178924
+Out-of-sample R2 for 4 y: -0.061603371175263044
+Out-of-sample R2 for 5 y: -0.06069409767023726
+Out-of-sample R2 for 7 y: -0.0635021658767303
+Out-of-sample R2 for 10 y: -0.05644742613072884
+
 
 1. PCA + RANDOM FOREST:
 FWD regular:
