@@ -1,8 +1,7 @@
 '''
 TO DO
 * Test R200S when considering 2000-01-01 onwards
-* Plots and excel file
-* Master thesis appendix + validation
+* Master thesis validation
 '''
 
 ## Import libraries
@@ -31,7 +30,6 @@ from keras.optimizers import SGD
 import Data_preprocessing as data_prep
 import ModelComparison_Rolling
 import HAC_CW_adj_R2_signif_test
-import compute_benchmark
 
 ## Set seeds for replication
 tf.random.set_seed(777)
@@ -40,8 +38,8 @@ np.random.seed(777)
 ## Model setup : taking first differences and/or PCA as input (instead of fwd rates directly), re-estimation frequency
 
 first_differences = False
-pca_as_input = True
-re_estimation_freq = 12 # In months
+pca_as_input = False
+re_estimation_freq = 1 # In months
 extended_sample_period = False
 epochs = 10
 
@@ -98,7 +96,6 @@ def train_NN(X_train, Y_train, model_no, l1l2, dropout_rate, n_epochs=epochs):
     input_layer = Input(shape=(X_train.shape[1],))
     hidden_layer = Dense(3, activation='relu', kernel_regularizer=l1_l2(l1l2))(input_layer)
     hidden_layer = Dropout(dropout_rate)(hidden_layer)
-    hidden_layer = BatchNormalization()(hidden_layer)
     output_layer = Dense(Y_train.shape[2], activation='linear')(hidden_layer)
 
     model = Model(inputs=input_layer, outputs=output_layer)
@@ -187,6 +184,17 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 maturity_names = xr_df.columns.tolist()
 
+def compute_benchmark_prediction(xr_insample, xr_oos):
+    benchmark_preds = []
+
+    for i in range(len(xr_oos)):
+        combined = np.concatenate([xr_insample, xr_oos[:i+1]]) 
+        avg_val = combined.mean()  # This computes column-wise means
+        benchmark_preds.append(avg_val)
+
+    # Convert list of Series (one per iteration) to a single DataFrame
+    return pd.DataFrame(benchmark_preds, index=np.arange(len(xr_oos)))
+
 if first_differences and pca_as_input:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences + PCA) ===")
 elif first_differences:
@@ -199,7 +207,7 @@ else:
 for maturity in range(1,Y.shape[1]):
     maturity_name = maturity_names[maturity]
 
-    benchmark = compute_benchmark.compute_benchmark_prediction(Y[:reestimation_start_index, maturity],Y_test[:, maturity]).squeeze()
+    benchmark = compute_benchmark_prediction(Y[:reestimation_start_index, maturity],Y_test[:, maturity]).squeeze()
     r2_oos = ModelComparison_Rolling.R2OOS(y_true=Y_test[:, maturity], y_forecast=all_Y_pred[:, maturity])
     mspe = np.mean((Y_test[:, maturity] - all_Y_pred[:, maturity]) ** 2)
     signif_test_stat, signif_p_value = HAC_CW_adj_R2_signif_test.get_CW_adjusted_R2_signif(Y_test[:, maturity], all_Y_pred[:, maturity], benchmark)
@@ -217,7 +225,7 @@ for maturity in range(1,Y.shape[1]):
 
     clean_name = maturity_name.replace(" ", "_").replace("/", "_")
     
-    plt.savefig(f'/Users/avril/Desktop/Seminar/Python Code/Plots/Forecast_vs_True_{clean_name}.png', dpi=300)
+    plt.savefig(f'/Users/avril/Desktop/Seminar/Python Code/Plots/NN1_Forecast_vs_True_{clean_name}.png', dpi=300)
     plt.close()
 
 # Compute total runtime
