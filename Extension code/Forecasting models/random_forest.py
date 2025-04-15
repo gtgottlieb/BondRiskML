@@ -285,7 +285,7 @@ def main(use_macro: bool, difference: bool = False):
         
 
         # Plot the results using the reusable plotting function.
-        plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model = "Rf")
+        #plot_oos_results(er_out[col], predictions[col], benchmark_preds[col], start_oos, end_oos, model = "Rf")
 
         # Compute model Roos
         r2_value = r2_oos(er_out[col], predictions[col], benchmark_preds[col])
@@ -297,15 +297,15 @@ def main(use_macro: bool, difference: bool = False):
 
   # Save to excel
     if difference:
-        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/diff_Macro_rf.xlsx", index=False)
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/RandomForest preds/diff_Macro_rf.xlsx", index=False)
     else:
-        preds_df.to_excel("Extension code/Forecasting models/Saved preds/Random forest preds/Macro_rf.xlsx", index=False)
+        preds_df.to_excel("Extension code/Forecasting models/Saved preds/RandomForest preds/Macro_rf.xlsx", index=False)
 
         
 if __name__ == "__main__":
     # Directly call main with desired parameters.
     # Run it tomorrow!!
-    main(use_macro=True, difference=True)
+    #main(use_macro=True, difference=True)
     main(use_macro=True, difference=False)
 
     
