@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Input, Dropout, Concatenate, BatchNormalization
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras.models import load_model
 from tensorflow.keras.regularizers import l1_l2
 
@@ -31,11 +31,11 @@ np.random.seed(777)
 
 ## Model setup : taking first differences and/or PCA as input (instead of fwd rates directly), re-estimation frequency
 
-first_differences = False
+differencing = False
 pca_as_input = True
 re_estimation_freq = 1 # In months
 extended_sample_period = True
-epochs = 50
+epochs = 10 
 
 ## Import + prep the data
 
@@ -61,13 +61,13 @@ oos_start_date = '1990-01-01'
 reestimation_start_date = '1991-01-01'
 reestimation_start_index = fwd_df[fwd_df['Date'] == reestimation_start_date].index[0]
 
-if first_differences:
-    fwd_df = fwd_df.diff()
-    xr_df = xr_df.shift(-1)  # Shift Y to match the X diff at t
-    macro_df = macro_df.shift(-1)  # Shift macro data to match the X diff at t
+if differencing:
+    fwd_df = fwd_df.diff(12)
+    xr_df = xr_df.shift(-12)  # Shift Y to match the X diff at t
+    macro_df = macro_df.shift(-12)  # Shift macro data to match the X diff at t
     
     # Drop the first row where diff is NaN
-    valid_index = fwd_df.index[1:]
+    valid_index = fwd_df.index[12:]
     fwd_df = fwd_df.loc[valid_index]
     xr_df = xr_df.loc[valid_index]
     macro_df = macro_df.loc[valid_index]
@@ -119,9 +119,10 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
 
     dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN3_32_16_8'
     mcp = ModelCheckpoint(dumploc + f'/BestModel_{model_no}.keras', monitor='val_loss', save_best_only=False)
-    
+    early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
+
     model.compile(optimizer=sgd_optimizer, loss='mse')
-    history = model.fit([X_m_train, X_f_train], Y_train, epochs=n_epochs, callbacks=[mcp], 
+    history = model.fit([X_m_train, X_f_train], Y_train, epochs=n_epochs, callbacks=[mcp,early_stopping], 
                            shuffle=True, validation_split = 0.15, verbose=0, )
     
     val_loss = min(history.history['val_loss'])
