@@ -35,7 +35,7 @@ differencing = False
 pca_as_input = True
 re_estimation_freq = 1 # In months
 extended_sample_period = True
-epochs = 10 
+epochs = 50 
 
 ## Import + prep the data
 
@@ -107,7 +107,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     batch_norm_2 = BatchNormalization()(hidden_layer_2)
     drop_2 = Dropout(dropout_rate)(batch_norm_2)
 
-    hidden_layer_3 = Dense(16, activation='relu', kernel_regularizer=l1_l2(l1l2))(drop_2)
+    hidden_layer_3 = Dense(8, activation='relu', kernel_regularizer=l1_l2(l1l2))(drop_2)
     batch_norm_3 = BatchNormalization()(hidden_layer_3)
     drop_3 = Dropout(dropout_rate)(batch_norm_3)
 
@@ -214,9 +214,9 @@ def compute_benchmark_prediction(xr_insample, xr_oos):
     # Convert list of Series (one per iteration) to a single DataFrame
     return pd.DataFrame(benchmark_preds, index=np.arange(len(xr_oos)))
 
-if first_differences and pca_as_input:
+if differencing and pca_as_input:
     print("\n=== Neural Network (3 layers, 32-16-8 neurons per layer) OOS Performance (First Differences + PCA) ===")
-elif first_differences:
+elif differencing:
     print("\n=== Neural Network (3 layers, 32-16-8 neurons per layer) OOS Performance (First Differences) ===")
 elif pca_as_input:
     print("\n=== Neural Network (3 layers, 32-16-8 neurons per layer) OOS Performance (PCA) ===")
