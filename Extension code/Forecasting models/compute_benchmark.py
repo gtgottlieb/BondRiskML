@@ -4,7 +4,9 @@ def compute_benchmark_prediction(xr_insample, xr_oos):
     benchmark_preds = []
 
     for i in range(len(xr_oos)):
-        combined = pd.concat([xr_insample, xr_oos.iloc[:i+1]]) 
+        combined = pd.concat([xr_insample, xr_oos.iloc[:i+1]])
+        #avg_val = combined.mean()  # Compute the mean of the combined data
+
         # This computes column-wise means from 12 months before
         avg_val = combined.iloc[:-12].mean() if len(combined) > 12 else combined.mean() 
         benchmark_preds.append(avg_val)
@@ -15,7 +17,7 @@ def compute_benchmark_prediction(xr_insample, xr_oos):
 
 if __name__ == "__main__":
     # Example usage
-    xr = pd.read_excel("data-folder/!Data for/xr.xlsx")
+    xr = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
     date_split = "1990-01-01"
 
     # Split insample and out-of-sample data

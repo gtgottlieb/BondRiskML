@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import IncrementalPCA
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV
+from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV, GridSearchCV
 from sklearn.linear_model import ElasticNet
 from Roos import r2_oos
 from bayesian_shrinkage import bayesian_shrinkage
@@ -229,12 +229,20 @@ def main(use_macro: bool, difference: bool = False):
         bayes_preds = bayesian_shrinkage(benchmark_preds[col], predictions[col])
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
-    
+    '''
     if difference:
-        preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx", index=False)         
+        if use_macro:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_Macro_en.xlsx", index=False)
+        else:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/diff_FWD_en.xlsx", index=False)
     else:
-        preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx", index=False)
-    
+        if use_macro:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx", index=False)
+        else:
+            preds_df.to_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx", index=False)
+    '''
 if __name__ == "__main__":
-    main(use_macro=True, difference=False)
-    main(use_macro=True, difference=True)
+    # If you run the results with grid search instead of randomized search
+    main(use_macro=False, difference=False)
+    #main(use_macro=True, difference=False)
+    #main(use_macro=True, difference=True)
