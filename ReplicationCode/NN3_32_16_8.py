@@ -21,7 +21,6 @@ from tensorflow.keras.regularizers import l1_l2
 from keras.optimizers import SGD
 
 # Custom libraries
-import Data_preprocessing as data_prep
 import HAC_CW_adj_R2_signif_test
 from Roos import r2_oos
 
@@ -31,7 +30,7 @@ np.random.seed(777)
 
 ## Model setup : taking first differences and/or PCA as input (instead of fwd rates directly), re-estimation frequency
 
-differencing = False
+differencing = True
 pca_as_input = True
 re_estimation_freq = 1 # In months
 extended_sample_period = True
@@ -40,11 +39,12 @@ epochs = 50
 ## Import + prep the data
 
 # Import yield and macro data
-yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
-forward_rates, xr = data_prep.process_yield_data(yields_df)
+forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
+xr = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
 
-macro_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Imputted_MacroData.xlsx')
+macro_df = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
+
 
 # Set sample period
 start_date = '1971-08-01' 
@@ -53,9 +53,9 @@ if extended_sample_period:
 else:
     end_date = '2018-12-01' # As in Bianchi
 
-fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
+fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= (pd.to_datetime(end_date) - pd.DateOffset(years=1)))]
 xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
-macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_date)]
+macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= (pd.to_datetime(end_date) - pd.DateOffset(years=1)))]
 
 oos_start_date = '1990-01-01'
 reestimation_start_date = '1991-01-01'
@@ -122,7 +122,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     model = Model(inputs=[m_input, f_input], outputs=output_layer)
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
 
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN3_32_16_8'
+    dumploc = '/data-folder/dumploc_NN3_32_16_8'
     mcp = ModelCheckpoint(dumploc + f'/BestModel_{model_no}.keras', monitor='val_loss', save_best_only=False)
     early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
 
@@ -136,7 +136,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     return val_loss
 
 def forecast_NN(X_f_test, X_m_test, model_no):
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN3_32_16_8'
+    dumploc = '/data-folder/dumploc_NN3_32_16_8'
     model = load_model(dumploc + f'/BestModel_{model_no}.keras')
     
     X_f_test = X_f_test.reshape(1, -1)
@@ -262,4 +262,4 @@ print(f"\n Total runtime: {int(mins)} min {secs:.0f} sec")
 
 # Save forecasts to excel file
 Y_oos_df = pd.DataFrame(all_Y_pred, index=restimation_iteration_dates, columns=maturity_names)
-Y_oos_df.to_excel('/Users/avril/Desktop/Seminar/Python Code/Predictions/NN3_32_16_8_Predictions.xlsx')
+Y_oos_df.to_excel('/data-folder/NN3_32_16_8_Predictions.xlsx')

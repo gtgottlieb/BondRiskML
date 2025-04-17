@@ -22,8 +22,7 @@ from tensorflow.keras.regularizers import l1_l2
 from keras.optimizers import SGD
 
 # Custom libraries
-#import Data_preprocessing as data_prep
-#import HAC_CW_adj_R2_signif_test
+import HAC_CW_adj_R2_signif_test
 from Roos import r2_oos
 
 ## Set seeds for replication
@@ -35,26 +34,30 @@ random.seed(777)
 
 differencing = True
 pca_as_input = True
-re_estimation_freq = 3 # In months
+re_estimation_freq = 1 # In months
 extended_sample_period = True
 epochs = 10
 
 ## Import + prep the data
 
-# Import yield data, set in dataframe format.    
-forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
+# Import yield data, set in dataframe format.
 xr = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
+forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
 
 # Set sample period
-start_date = '1972-08-01' 
+start_date = '1971-08-01' 
 if extended_sample_period:
     end_date = '2023-11-01' # Most recent
 else:
     end_date = '2018-12-01' # As in Bianchi
 
-fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
-xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
+#fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
+#xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
+
+# Filter excess returns to only include specific maturities
+selected_maturities = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
+xr_df = xr_df[selected_maturities]
 
 oos_start_date = '1990-01-01'
 reestimation_start_date = '1991-01-01'
@@ -100,7 +103,7 @@ def train_NN(X_train, Y_train, model_no, l1l2, dropout_rate, n_epochs=epochs):
     model = Model(inputs=input_layer, outputs=output_layer)
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
     
-    dumploc = '/Users/gtgot/Desktop/Dumploc'
+    dumploc = '/Users/gtgot/Desktop/dumploc_NN1_3'
     mcp = ModelCheckpoint(dumploc + f'/BestModel_{model_no}.keras', monitor='val_loss', save_best_only=False)
 
     model.compile(optimizer=sgd_optimizer, loss='mse')
@@ -113,7 +116,7 @@ def train_NN(X_train, Y_train, model_no, l1l2, dropout_rate, n_epochs=epochs):
 
 
 def forecast_NN(X_test, model_no):
-    dumploc = '/Users/gtgot/Desktop/Dumploc'
+    dumploc = '/Users/gtgot/Desktop/dumploc_NN1_3'
     model = load_model(dumploc + f'/BestModel_{model_no}.keras')
     X_test = X_test.reshape(1, -1)
     Y_pred = model.predict(X_test)
@@ -194,11 +197,11 @@ def compute_benchmark_prediction(xr_insample, xr_oos):
     # Convert list of Series (one per iteration) to a single DataFrame
     return pd.DataFrame(benchmark_preds, index=np.arange(len(xr_oos)))
 
-if first_differences and pca_as_input:
+#if first_differences and pca_as_input:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences + PCA) ===")
-elif first_differences:
+#elif first_differences:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences) ===")
-elif pca_as_input:
+if pca_as_input:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (PCA) ===")
 else:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance ===")
@@ -209,11 +212,11 @@ for maturity in range(1,Y.shape[1]):
     benchmark = compute_benchmark_prediction(Y[:reestimation_start_index, maturity],Y_test[:, maturity]).squeeze()
     r2_value = r2_oos(Y_test[:, maturity], all_Y_pred[:, maturity], benchmark[maturity])
     rmse = np.sqrt(np.mean((Y_test[:, maturity] - all_Y_pred[:, maturity])**2))
-    #signif_test_stat, signif_p_value = HAC_CW_adj_R2_signif_test.get_CW_adjusted_R2_signif(Y_test[:, maturity], all_Y_pred[:, maturity], benchmark)
+    signif_test_stat, signif_p_value = HAC_CW_adj_R2_signif_test.get_CW_adjusted_R2_signif(Y_test[:, maturity], all_Y_pred[:, maturity], benchmark)
 
-    print(f"{maturity_name}: R²OOS={r2_value*100:.3f}%, RMSE={rmse:.3f}")
+    print(f"{maturity_name}: R²OOS={r2_value*100:.3f}%, RMSE={rmse:.3f}, p-value={signif_p_value:.3f}")
 
-    
+    '''
     plt.figure(figsize=(12, 6))
     plt.plot(restimation_iteration_dates, Y_test[:, maturity], label='True', color='red')
     plt.plot(restimation_iteration_dates, all_Y_pred[:, maturity], label='Forecast', color='blue', linestyle='--')
@@ -225,8 +228,9 @@ for maturity in range(1,Y.shape[1]):
 
     clean_name = maturity_name.replace(" ", "_").replace("/", "_")
     
-    #plt.savefig(f'/Users/avril/Desktop/Seminar/Python Code/Plots/NN1_Forecast_vs_True_{clean_name}.png', dpi=300)
+    plt.savefig(f'/Users/avril/Desktop/Seminar/Python Code/Plots/NN1_Forecast_vs_True_{clean_name}.png', dpi=300)
     plt.close()
+    '''
 
 # Compute total runtime
 end_time = time.time()
@@ -236,4 +240,4 @@ print(f"\n Total runtime: {int(mins)} min {secs:.0f} sec")
 
 # Save forecasts to excel file
 Y_oos_df = pd.DataFrame(all_Y_pred, index=restimation_iteration_dates, columns=maturity_names)
-Y_oos_df.to_excel('/Users/avril/Desktop/Seminar/Python Code/Predictions/NN1_3_Predictions.xlsx')
+Y_oos_df.to_excel('/Users/gtgott/Desktop/NN1_3_Predictions.xlsx')
