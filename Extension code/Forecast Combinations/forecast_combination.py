@@ -75,7 +75,7 @@ def main(predictions_list, output_file):
     macro_data = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.xlsx") 
 
     # Define out-of-sample period.
-    start_oos = pd.to_datetime("1990-01-01")
+    start_oos = pd.to_datetime("1991-01-01")
     end_oos = pd.to_datetime("2023-11-01")
 
     # Convert 'Date' columns to datetime.
@@ -109,8 +109,8 @@ def main(predictions_list, output_file):
     for col in predictions_list[0].columns:
         # Calculate OOS R² for each individual prediction input after burn-in.
         for idx, pred_df in enumerate(predictions_list):
-            r2_val = r2_oos(er_out[col].values[burn_in:], pred_df[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
-            tstat_val, p_value = RSZ_Signif(er_out[col].values[burn_in:], pred_df[col].values[burn_in:], benchmark_preds[col].values[burn_in:])
+            r2_val = r2_oos(er_out[col].values, pred_df[col].values, benchmark_preds[col].values)
+            tstat_val, p_value = RSZ_Signif(er_out[col].values, pred_df[col].values, benchmark_preds[col].values)
             print(f"Col {col} - Pred {idx+1}: R²={r2_val:.4f}, t-stat={tstat_val:.4f}, p-val={p_value:.4f}")
 
         # Combine forecasts from all prediction sources.
@@ -166,8 +166,16 @@ if __name__ == "__main__":
     rf_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/diff_FWD_rf.xlsx")
     en_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/diff_FWD_en.xlsx")
 
+    pca_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/Macro_reg.xlsx")
+    rf_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/Macro_rf.xlsx")
+    en_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/Macro_en.xlsx")
 
-    predictions_list = [pca_fwd_diff, rf_fwd_diff, en_fwd_diff]
+    pca_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/diff_Macro.xlsx")
+    rf_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/diff_Macro_rf.xlsx")
+    en_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/diff_Macro_en.xlsx")
+    nn_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/NN/NN3_32_16_8_diff.xlsx")
+
+    predictions_list = [pca_macro_diff[12:], nn_macro_diff]
     output_file = "Extension code/Forecast Combinations/Combo Predictions/RF_NeuralNet_FWD.xlsx"
     
     main(predictions_list, output_file)
