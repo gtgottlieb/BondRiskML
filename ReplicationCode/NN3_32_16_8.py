@@ -65,12 +65,17 @@ if differencing:
     fwd_df = fwd_df.diff(12)
     xr_df = xr_df.shift(-12)  # Shift Y to match the X diff at t
     macro_df = macro_df.shift(-12)  # Shift macro data to match the X diff at t
-    
-    # Drop the first row where diff is NaN
-    valid_index = fwd_df.index[12:]
-    fwd_df = fwd_df.loc[valid_index]
-    xr_df = xr_df.loc[valid_index]
-    macro_df = macro_df.loc[valid_index]
+
+    # Drop NaNs across all datasets by merging and dropping rows with any missing values
+    combined = pd.concat([fwd_df, xr_df, macro_df], axis=1)
+    combined.dropna(inplace=True)
+
+    # Split back into separate DataFrames
+    num_fwd_cols = fwd_df.shape[1]
+    num_xr_cols = xr_df.shape[1]
+    fwd_df = combined.iloc[:, :num_fwd_cols]
+    xr_df = combined.iloc[:, num_fwd_cols:num_fwd_cols + num_xr_cols]
+    macro_df = combined.iloc[:, num_fwd_cols + num_xr_cols:]
 
 ## Prepare X + Y variables
 fwd_df.set_index('Date', inplace=True)
