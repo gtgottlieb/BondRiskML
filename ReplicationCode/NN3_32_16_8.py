@@ -53,9 +53,12 @@ if extended_sample_period:
 else:
     end_date = '2018-12-01' # As in Bianchi
 
-fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= (pd.to_datetime(end_date) - pd.DateOffset(years=1)))]
+# Shift the 'Date' column back by a year in the excess returns (xr_df)
+xr_df['Date'] = pd.to_datetime(xr_df['Date']) - pd.DateOffset(years=1)
+
+fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date) ]
 xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
-macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= (pd.to_datetime(end_date) - pd.DateOffset(years=1)))]
+macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_date) ]
 
 oos_start_date = '1990-01-01'
 reestimation_start_date = '1991-01-01'
@@ -122,7 +125,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     model = Model(inputs=[m_input, f_input], outputs=output_layer)
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
 
-    dumploc = '/data-folder/dumploc_NN3_32_16_8'
+    dumploc = './dumploc_NN3_32_16_8'  # Use a relative path in the current working directory
     mcp = ModelCheckpoint(dumploc + f'/BestModel_{model_no}.keras', monitor='val_loss', save_best_only=False)
     early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
 
@@ -136,7 +139,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     return val_loss
 
 def forecast_NN(X_f_test, X_m_test, model_no):
-    dumploc = '/data-folder/dumploc_NN3_32_16_8'
+    dumploc = './dumploc_NN3_32_16_8'  # Use a relative path in the current working directory
     model = load_model(dumploc + f'/BestModel_{model_no}.keras')
     
     X_f_test = X_f_test.reshape(1, -1)
@@ -262,4 +265,4 @@ print(f"\n Total runtime: {int(mins)} min {secs:.0f} sec")
 
 # Save forecasts to excel file
 Y_oos_df = pd.DataFrame(all_Y_pred, index=restimation_iteration_dates, columns=maturity_names)
-Y_oos_df.to_excel('/data-folder/NN3_32_16_8_Predictions.xlsx')
+Y_oos_df.to_excel('./NN3_32_16_8_Predictions.xlsx')
