@@ -165,21 +165,34 @@ if __name__ == "__main__":
     pca_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/diff_FWD.xlsx")
     rf_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/diff_FWD_rf.xlsx")
     en_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/diff_FWD_en.xlsx")
+    
 
     pca_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/Macro_reg.xlsx")
     rf_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/Macro_rf.xlsx")
     en_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/Macro_en.xlsx")
+    nn_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/NN/NN3_32_16_8_Predictions.xlsx")
 
     pca_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/diff_Macro.xlsx")
     rf_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/diff_Macro_rf.xlsx")
     en_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/diff_Macro_en.xlsx")
     nn_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/NN/NN3_32_16_8_diff.xlsx")
 
-    predictions_list = [pca_macro_diff[12:], nn_macro_diff]
-    output_file = "Extension code/Forecast Combinations/Combo Predictions/RF_NeuralNet_FWD.xlsx"
-    
+    predictions_list = [pca_macro[12:], nn_macro]
+    output_file = "Extension code/Forecast Combinations/Combo Predictions/PCA_NeuralNet_Macro.xlsx"
+    print(f"PCA + NN Macro")
     main(predictions_list, output_file)
 
+    predictions_list = [rf_macro[12:], nn_macro]
+    output_file = "Extension code/Forecast Combinations/Combo Predictions/RF_NeuralNet_FWD.xlsx"
+    print(f"PCA + NN Macro")
+    main(predictions_list, output_file)
+
+    predictions_list = [en_macro[12:], nn_macro]
+    output_file = "Extension code/Forecast Combinations/Combo Predictions/RF_NeuralNet_FWD.xlsx"
+    print(f"PCA + NN Macro")
+    main(predictions_list, output_file)
+
+    
     """
     # Macro
     print("Macro:")
