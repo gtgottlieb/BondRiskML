@@ -29,7 +29,7 @@ tf.random.set_seed(777)
 np.random.seed(777)
 
 # Global boolean to control whether to check for existing models in dumploc
-resume = False
+resume = True
 
 ## Model setup : taking first differences and/or PCA as input (instead of fwd rates directly), re-estimation frequency
 differencing = False
@@ -49,7 +49,7 @@ macro_df = pd.read_excel("data-folder/!Data for forecasting/Imputted_MacroData.x
 
 
 # Set sample period
-start_date = '1971-08-01' 
+start_date = '1972-08-01' 
 if extended_sample_period:
     end_date = '2023-11-01' # Most recent
 else:
@@ -58,6 +58,11 @@ else:
 # Shift the 'Date' column back by a year in the excess returns (xr_df)
 xr_df['Date'] = pd.to_datetime(xr_df['Date']) - pd.DateOffset(years=1)
 
+xr_df = xr_df.shift(-12)
+macro_df = macro_df.shift(-12)
+xr_df.dropna(inplace=True)
+macro_df.dropna(inplace=True)
+
 fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date) ]
 xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
 macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_date) ]
@@ -65,6 +70,8 @@ macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_
 oos_start_date = '1990-01-01'
 reestimation_start_date = '1991-01-01'
 reestimation_start_index = fwd_df[fwd_df['Date'] == reestimation_start_date].index[0]
+
+
 
 if differencing:
     fwd_df = fwd_df.diff(12)
@@ -125,7 +132,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     model = Model(inputs=[m_input, f_input], outputs=output_layer)
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
 
-    dumploc = 'data-folder\dumploc_NN3_32_16_8'  # Use a relative path in the current working directory
+    dumploc = 'data-folder/dumploc_NN3_32_16_8_new'  # Use a relative path in the current working directory
     mcp = ModelCheckpoint(dumploc + f'/BestModel_{model_no}.keras', monitor='val_loss', save_best_only=False)
     early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
 
@@ -139,7 +146,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     return val_loss
 
 def forecast_NN(X_f_test, X_m_test, model_no):
-    dumploc = 'data-folder\dumploc_NN3_32_16_8'  # Use a relative path in the current working directory
+    dumploc = 'data-folder/dumploc_NN3_32_16_8_new'  # Use a relative path in the current working directory
     model = load_model(dumploc + f'/BestModel_{model_no}.keras')
     
     X_f_test = X_f_test.reshape(1, -1)
@@ -166,7 +173,7 @@ oos_iteration_dates = pd.date_range(start=oos_start_date,
 import os
 if resume:
     pending_dates = [t for t in oos_iteration_dates 
-                     if not os.path.exists(f'data-folder/dumploc_NN3_32_16_8/BestModel_{t.strftime("%Y%m")}.keras')]
+                     if not os.path.exists(f'data-folder/dumploc_NN3_32_16_8_new/BestModel_{t.strftime("%Y%m")}.keras')]
 else:
     pending_dates = list(oos_iteration_dates)
 
