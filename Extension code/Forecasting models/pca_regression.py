@@ -230,6 +230,7 @@ def main(n_fwd_components: int, use_macro: bool, difference: bool = False):
 
     # Compute benchmark predictions.
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
+    benchmark_preds.to_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx", index=False)
 
     # Report out-of-sample R2 for each column.
     preds_df = pd.DataFrame()

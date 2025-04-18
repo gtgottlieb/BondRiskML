@@ -50,18 +50,31 @@ if __name__ == "__main__":
     fwd_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression preds/FWD_reg.xlsx")
     fwd_preds_en = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/FWD_en.xlsx")
     fwd_preds_rf = pd.read_excel("Extension code/Forecasting models/Saved preds/RandomForest preds/FWD_rf.xlsx")
+    #fwd_preds_nn = pd.read_excel("Extension code/Forecasting models/Saved preds/NN preds/FWD_nn.xlsx")
 
     # Load the benchmark
+    realized = pd.read_excel("Extension code/Forecasting models/Saved preds/realized_xr.xlsx")
     benchmark = pd.read_excel("Extension code/Forecasting models/Saved preds/Benchmark.xlsx")
     # Subset benchmark to have the same columns as fwd_preds
     benchmark = benchmark[list(fwd_preds.columns)]
+
+    # Print lengths of all loaded dataframes
+    print("Lengths of loaded dataframes:")
+    print(f"fwd_preds: {len(fwd_preds)}")
+    print(f"fwd_preds_en: {len(fwd_preds_en)}")
+    print(f"fwd_preds_rf: {len(fwd_preds_rf)}")
+    #print(f"fwd_preds_nn: {len(fwd_preds_nn)}")
+    print(f"realized: {len(realized)}")
+    print(f"benchmark: {len(benchmark)}")
+
 
     # Create dictionary for FWD models
     fwd_dict = {
         'Benchmark': benchmark,
         'Regression': fwd_preds, 
         'ElasticNet': fwd_preds_en, 
-        'RandomForest': fwd_preds_rf
+        'RandomForest': fwd_preds_rf,
+        #'Neural Network': fwd_preds_nn
     }
 
     # Load Macro predictions if needed
@@ -84,6 +97,11 @@ if __name__ == "__main__":
     # Run the MSE computation for FWD models (or change to macro_dict when needed)
     mse_fwd_dict = compute_mse(fwd_dict, realized, dates)
     mse_macro_dict = compute_mse(macro_dict, realized, dates)
+
+    print(f"macro_preds: {len(macro_preds)}")
+    print(f"macro_preds_en: {len(macro_preds_en)}")
+    print(f"macro_preds_rf: {len(macro_preds_rf)}")
+    print(f"dates: {len(dates)}")
 
     # Plot MSE values for FWD models
     plotting_mse(mse_fwd_dict, mse_macro_dict)

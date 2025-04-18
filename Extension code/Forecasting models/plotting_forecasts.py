@@ -1,45 +1,44 @@
+import math
 import pandas as pd
 import matplotlib.pyplot as plt
 
 def plot_oos_results(actual, predictions, benchmark, dates):
-    # Extract the oos dates from the xr.xlsx file.
+    num_models = len(predictions)
     
-    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
-    axs = axs.flatten()
-
+    # Use a single row for up to 3 plots; otherwise use a grid with 2 columns
+    if num_models <= 3:
+        fig, axs = plt.subplots(1, num_models, figsize=(5*num_models, 5))
+        # When there's only one plot, axs is not a list, so we wrap it
+        if num_models == 1:
+            axs = [axs]
+    else:
+        ncols = 2
+        nrows = math.ceil(num_models / ncols)
+        fig, axs = plt.subplots(nrows, ncols, figsize=(10, 5*nrows))
+        axs = axs.flatten()
+    
     for i, (model_name, pred_series) in enumerate(predictions.items()):
         axs[i].plot(dates, actual.values, label="Actual")
-        axs[i].plot(dates, pred_series.values, linestyle='-.', label=f"{model_name} Predictions")
+        axs[i].plot(dates, pred_series.values, linestyle='-.', label=f"{model_name}")
         axs[i].plot(dates, benchmark.values, label="Benchmark")
         axs[i].set_title(f"{model_name} forecasts")
         axs[i].set_xlabel("Date")
         axs[i].set_ylabel("Return Values")
         axs[i].legend()
         axs[i].grid(True)
-
+    
+    # Remove any unused subplots when using a grid layout
+    if num_models > 3:
+        for j in range(i+1, len(axs)):
+            fig.delaxes(axs[j])
+    
     plt.tight_layout()
     plt.show()
 
-    '''
-    # Loop over the predictions dictionary and plot each model's predictions
-    plt.figure(figsize=(10, 6))
-    plt.plot(dates, actual.values, linestyle="--", label="Actual")
-
-    for model_name, pred_series in predictions.items():
-        plt.plot(dates, pred_series.values, linestyle='-.', label=f"{model_name} Predictions")
-    
-    plt.plot(dates, benchmark.values, label="Benchmark")
-    plt.title("Out-of-Sample Comparison")
-    plt.xlabel("Date")
-    plt.ylabel("Return Values")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-    '''
-
 if __name__ == "__main__":
     # Load the data
-
+    
+    '''
     reg_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression preds/Macro_reg.xlsx")
     en_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/ElasticNet preds/Macro_en.xlsx")
     rf_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/RandomForest preds/Macro_rf.xlsx")
@@ -83,6 +82,25 @@ if __name__ == "__main__":
         benchmark=benchmark_preds["2 y"],
         dates = dates
     )
+    '''
+
+    reg_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression preds/Macro_reg.xlsx")
+    reg_diff_macro_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression preds/diff_Macro.xlsx")
+    benchmark_preds = pd.read_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx")
+    realized = pd.read_excel("Extension code/Forecasting models/Saved preds/realized_xr.xlsx")
+    dates = pd.read_excel("Extension code/Forecasting models/Saved preds/dates.xlsx")
 
 
+    pred_dictionary = {
+        "PCR (differenced)": reg_diff_macro_preds["2 y"],
+        "PCR": reg_macro_preds["2 y"],
+        #"RandomForest": rf_macro_preds["2 y"],
+        #"NN": nn_macro_preds["2 y"]
+    }
 
+    plot_oos_results(
+        actual=realized["2 y"],
+        predictions=pred_dictionary,
+        benchmark=benchmark_preds["2 y"],
+        dates = dates
+    )

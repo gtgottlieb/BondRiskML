@@ -26,5 +26,5 @@ if __name__ == "__main__":
 
     benchmark_predictions = compute_benchmark_prediction(xr_insample, xr_oos)
     # Save to excel 
-    benchmark_predictions.to_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx", index=True)
+    #benchmark_predictions.to_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx", index=True)
     #print(benchmark_predictions.head())
