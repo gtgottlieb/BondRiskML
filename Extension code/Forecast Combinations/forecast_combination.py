@@ -102,10 +102,12 @@ def main(predictions_list, output_file):
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
 
     # Define burn-in period (approx 10 years for monthly data)
-    burn_in = 120
+    burn_in = 96
     
     # Loop over each maturity column (use first predictions dataframe columns)
     neural_results = {}
+    simple_results = {}   # added to store simple average predictions
+    
     for col in predictions_list[0].columns:
         # Calculate OOS R² for each individual prediction input after burn-in.
         for idx, pred_df in enumerate(predictions_list):
@@ -118,24 +120,28 @@ def main(predictions_list, output_file):
         forecasts = [pred_df[col].values for pred_df in predictions_list]
         simple_combo = simple_average_forecast(forecasts)
         stacked_combo = linear_stacking(forecasts, er_out[col].values)
-        neural_combo = neural_network_stacking(forecasts, er_out[col].values)
+        #neural_combo = neural_network_stacking(forecasts, er_out[col].values)
         
-        # Store neural network stacking results for saving later.
-        neural_results[col] = neural_combo
+        # Store neural network stacking and simple average results for saving later.
+        #neural_results[col] = neural_combo
+        simple_results[col] = simple_combo   # added
 
         # Compute combined OOS R² scores and significance levels after burn-in.
         r2_simple = r2_oos(er_out[col].values[burn_in:], simple_combo[burn_in:], benchmark_preds[col].values[burn_in:])
         tstat_simple, pval_simple = RSZ_Signif(er_out[col].values[burn_in:], simple_combo[burn_in:], benchmark_preds[col].values[burn_in:])
         r2_linear = r2_oos(er_out[col].values[burn_in:], stacked_combo[burn_in:], benchmark_preds[col].values[burn_in:])
         tstat_linear, pval_linear = RSZ_Signif(er_out[col].values[burn_in:], stacked_combo[burn_in:], benchmark_preds[col].values[burn_in:])
+        """
         r2_neural = r2_oos(er_out[col].values[burn_in:], neural_combo[burn_in:], benchmark_preds[col].values[burn_in:])
         tstat_neural, pval_neural = RSZ_Signif(er_out[col].values[burn_in:], neural_combo[burn_in:], benchmark_preds[col].values[burn_in:])
-
+        
         print(f"Col {col} - Simple: R²={r2_simple:.4f}, t-stat={tstat_simple:.4f}, p-val={pval_simple:.4f} | "
               f"Linear: R²={r2_linear:.4f}, t-stat={tstat_linear:.4f}, p-val={pval_linear:.4f} | "
               f"NN: R²={r2_neural:.4f}, t-stat={tstat_neural:.4f}, p-val={pval_neural:.4f}")
+              
+        """
         
-        # Plot the neural network stacking results for each maturity.
+        """# Plot the neural network stacking results for each maturity.
         plt.figure(figsize=(10, 6))
         plt.plot(neural_combo, label="Neural Network Stacking", color="blue")
         plt.plot(er_out[col].values, label="Actual", color="orange", linestyle="--")
@@ -147,12 +153,18 @@ def main(predictions_list, output_file):
         plt.tight_layout()
         output_filename = output_file.split("/")[-1].rsplit(".", 1)[0]  # Extract only the file name without extension
         plt.savefig(f"Extension code/Forecast Combinations/Plots/{output_filename}_{col}.png")
-        plt.close()
+        plt.close()"""
 
-    # Save neural network stacking results to an Excel file.
+    """# Save neural network stacking results to an Excel file.
     neural_df = pd.DataFrame(neural_results)
     neural_df.columns = predictions_list[0].columns  # Ensure proper column names
-    neural_df.to_excel(output_file, index=False)
+    neural_df.to_excel(output_file, index=False)"""
+    
+    # Save simple average predictions to an Excel file.
+    simple_df = pd.DataFrame(simple_results)
+    simple_df.columns = predictions_list[0].columns  # Ensure proper column names
+    simple_output_file = output_file
+    simple_df.to_excel(simple_output_file, index=False)
 
 
 if __name__ == "__main__":
@@ -165,7 +177,7 @@ if __name__ == "__main__":
     pca_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/diff_FWD.xlsx")
     rf_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/diff_FWD_rf.xlsx")
     en_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/diff_FWD_en.xlsx")
-    
+    nn_fwd_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/NN/diff_FWD_nn.xlsx")
 
     pca_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/PCA/Macro_reg.xlsx")
     rf_macro = pd.read_excel("Extension code/Forecast Combinations/Predictions/RF/Macro_rf.xlsx")
@@ -177,53 +189,13 @@ if __name__ == "__main__":
     en_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/ElasticNet/diff_Macro_en.xlsx")
     nn_macro_diff = pd.read_excel("Extension code/Forecast Combinations/Predictions/NN/diff_Macro_nn.xlsx")
 
-    predictions_list = [pca_macro_diff[12:], nn_macro_diff]
-    output_file = "Extension code/Forecast Combinations/Combo Predictions/PCA_NeuralNet_Macro_DIFF.xlsx"
-    print(f"PCA + NN Macro Diff")
-    main(predictions_list, output_file)
-
-    predictions_list = [rf_macro_diff[12:], nn_macro_diff]
-    output_file = "Extension code/Forecast Combinations/Combo Predictions/RF_NeuralNet_Macro_DIFF.xlsx"
-    print(f"RF + NN Macro Diff")
+    # Best combos:
+    predictions_list = [pca_fwd_diff[12:], en_fwd_diff[12:]]
+    output_file = "Extension code/Forecast Combinations/Combo Predictions/AVG_PCA_ElasticNet_FWD_DIFF.xlsx"
+    print(f"PCA + EN FWD DIFF")
     main(predictions_list, output_file)
 
     predictions_list = [en_macro_diff[12:], nn_macro_diff]
-    output_file = "Extension code/Forecast Combinations/Combo Predictions/EN_NeuralNet_Macro_DIFF.xlsx"
+    output_file = "Extension code/Forecast Combinations/Combo Predictions/AVG_EN_NeuralNet_Macro_DIFF.xlsx"
     print(f"EN + NN Macro Diff")
     main(predictions_list, output_file)
-
-    
-    """
-    # Macro
-    print("Macro:")
-    prediction_files = [
-        "Extension code/Forecast Combinations/Predictions/PCA/Macro_reg.xlsx",
-        "Extension code/Forecast Combinations/Predictions/ElasticNet/Macro_en.xlsx"
-    ]
-    
-    output_file = "Extension code/Forecast Combinations/Combo Predictions/PCA_ElasticNet_Macro.xlsx"
-    
-    main(prediction_files, output_file)
-
-    # Difference FWD
-    print("Difference FWD:")
-    prediction_files = [
-        "Extension code/Forecast Combinations/Predictions/PCA/diff_FWD_reg.xlsx",
-        "Extension code/Forecast Combinations/Predictions/ElasticNet/diff_FWD_en.xlsx"
-    ]
-    
-    output_file = "Extension code/Forecast Combinations/Combo Predictions/PCA_ElasticNet_FWD_DIFF.xlsx"
-    
-    main(prediction_files, output_file)
-
-    # Difference Macro
-    print("Difference Macro:")
-    prediction_files = [
-        "Extension code/Forecast Combinations/Predictions/PCA/diff_Macro_reg.xlsx",
-        "Extension code/Forecast Combinations/Predictions/ElasticNet/diff_Macro_en.xlsx"
-    ]
-    
-    output_file = "Extension code/Forecast Combinations/Combo Predictions/PCA_ElasticNet_Macro_DIFF.xlsx" 
-
-    main(prediction_files, output_file)
-    """

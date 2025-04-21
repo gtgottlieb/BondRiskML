@@ -276,6 +276,24 @@ Col 10 y - Pred 2: R²=-0.0004, t-stat=0.2481, p-val=0.4021
 Col 10 y - Simple: R²=-0.0167, t-stat=2.1785, p-val=0.0151 | Linear: R²=-0.0111, t-stat=1.3391, p-val=0.0908 | NN: R²=0.0190, t-stat=1.5889, p-val=0.0566
 
 FWD Difference
+Col 2 y - Pred 1: R²=0.0962, t-stat=2.4029, p-val=0.0084
+Col 2 y - Pred 2: R²=-0.0348, t-stat=-0.8188, p-val=0.7933
+Col 2 y - Simple: R²=0.1294, t-stat=2.1866, p-val=0.0148 | Linear: R²=0.0283, t-stat=1.5837, p-val=0.0572 | NN: R²=-0.0696, t-stat=0.4079, p-val=0.3418
+Col 3 y - Pred 1: R²=0.0809, t-stat=2.2051, p-val=0.0140
+Col 3 y - Pred 2: R²=-0.0240, t-stat=-0.7389, p-val=0.7698
+Col 3 y - Simple: R²=0.1245, t-stat=2.0531, p-val=0.0205 | Linear: R²=0.0242, t-stat=1.5055, p-val=0.0667 | NN: R²=-0.0174, t-stat=0.9279, p-val=0.1771
+Col 4 y - Pred 1: R²=0.0625, t-stat=2.0764, p-val=0.0193
+Col 4 y - Pred 2: R²=-0.0208, t-stat=-0.7226, p-val=0.7648
+Col 4 y - Simple: R²=0.1065, t-stat=1.8963, p-val=0.0295 | Linear: R²=0.0166, t-stat=1.4304, p-val=0.0769 | NN: R²=-0.0402, t-stat=0.9069, p-val=0.1826
+Col 5 y - Pred 1: R²=0.0501, t-stat=1.9690, p-val=0.0248
+Col 5 y - Pred 2: R²=-0.0209, t-stat=-0.8376, p-val=0.7986
+Col 5 y - Simple: R²=0.0908, t-stat=1.8161, p-val=0.0352 | Linear: R²=0.0115, t-stat=1.3635, p-val=0.0869 | NN: R²=-0.0677, t-stat=0.8360, p-val=0.2020
+Col 7 y - Pred 1: R²=0.0328, t-stat=1.9374, p-val=0.0267
+Col 7 y - Pred 2: R²=-0.0221, t-stat=-1.0195, p-val=0.8457
+Col 7 y - Simple: R²=0.0725, t-stat=1.7582, p-val=0.0399 | Linear: R²=0.0093, t-stat=1.3867, p-val=0.0833 | NN: R²=-0.0682, t-stat=0.9211, p-val=0.1789
+Col 10 y - Pred 1: R²=0.0294, t-stat=1.9220, p-val=0.0277
+Col 10 y - Pred 2: R²=-0.0327, t-stat=-1.6472, p-val=0.9498
+Col 10 y - Simple: R²=0.0614, t-stat=1.7602, p-val=0.0397 | Linear: R²=0.0265, t-stat=1.4814, p-val=0.0698 | NN: R²=-0.0468, t-stat=0.9440, p-val=0.1730
 
 Macro Difference
 Col 2 y - Pred 1: R²=-0.2778, t-stat=2.4676, p-val=0.0070
@@ -340,6 +358,25 @@ Col 10 y - Pred 2: R²=-0.0004, t-stat=0.2481, p-val=0.4021
 Col 10 y - Simple: R²=-0.1260, t-stat=-0.5783, p-val=0.7182 | Linear: R²=-0.1327, t-stat=0.4306, p-val=0.3335 | NN: R²=-0.1826, t-stat=0.1200, p-val=0.4523
 
 FWD Difference
+Col 2 y - Pred 1: R²=-0.0744, t-stat=2.0533, p-val=0.0204
+Col 2 y - Pred 2: R²=-0.0348, t-stat=-0.8188, p-val=0.7933
+Col 2 y - Simple: R²=0.0953, t-stat=2.3620, p-val=0.0094 | Linear: R²=-0.1034, t-stat=-0.1822, p-val=0.5722 | NN: R²=-0.0265, t-stat=0.8702, p-val=0.1925
+Col 3 y - Pred 1: R²=-0.0751, t-stat=1.6869, p-val=0.0462
+Col 3 y - Pred 2: R²=-0.0240, t-stat=-0.7389, p-val=0.7698
+Col 3 y - Simple: R²=0.1107, t-stat=2.2637, p-val=0.0122 | Linear: R²=-0.0888, t-stat=0.1139, p-val=0.4547 | NN: R²=0.0499, t-stat=1.5448, p-val=0.0618
+Col 4 y - Pred 1: R²=-0.0895, t-stat=1.4577, p-val=0.0729
+Col 4 y - Pred 2: R²=-0.0208, t-stat=-0.7226, p-val=0.7648
+Col 4 y - Simple: R²=0.0871, t-stat=1.9419, p-val=0.0266 | Linear: R²=-0.0804, t-stat=0.2335, p-val=0.4078 | NN: R²=-0.0320, t-stat=0.9254, p-val=0.1778
+Col 5 y - Pred 1: R²=-0.1074, t-stat=1.1277, p-val=0.1301
+Col 5 y - Pred 2: R²=-0.0209, t-stat=-0.8376, p-val=0.7986
+Col 5 y - Simple: R²=0.0649, t-stat=1.6587, p-val=0.0492 | Linear: R²=-0.0783, t-stat=0.2247, p-val=0.4112 | NN: R²=-0.0616, t-stat=0.7661, p-val=0.2221
+Col 7 y - Pred 1: R²=-0.1375, t-stat=0.7898, p-val=0.2151
+Col 7 y - Pred 2: R²=-0.0221, t-stat=-1.0195, p-val=0.8457
+Col 7 y - Simple: R²=0.0408, t-stat=1.5256, p-val=0.0641 | Linear: R²=-0.0878, t-stat=0.0181, p-val=0.4928 | NN: R²=-0.1133, t-stat=0.4125, p-val=0.3402
+Col 10 y - Pred 1: R²=-0.2013, t-stat=0.1141, p-val=0.4546
+Col 10 y - Pred 2: R²=-0.0327, t-stat=-1.6472, p-val=0.9498
+Col 10 y - Simple: R²=0.0192, t-stat=1.3087, p-val=0.0959 | Linear: R²=-0.1302, t-stat=-0.5701, p-val=0.7155 | NN: R²=-0.1767, t-stat=-0.3507, p-val=0.6370
+
 
 Macro Difference
 Col 2 y - Pred 1: R²=-0.0197, t-stat=1.6952, p-val=0.0454
@@ -405,6 +442,25 @@ Col 10 y - Simple: R²=0.0434, t-stat=1.2699, p-val=0.1026 | Linear: R²=-0.0870
 
 
 FWD Difference
+Col 2 y - Pred 1: R²=0.0093, t-stat=1.2477, p-val=0.1064
+Col 2 y - Pred 2: R²=-0.0348, t-stat=-0.8188, p-val=0.7933
+Col 2 y - Simple: R²=0.0005, t-stat=0.5203, p-val=0.3016 | Linear: R²=-0.1284, t-stat=-0.2353, p-val=0.5929 | NN: R²=-0.1135, t-stat=-0.7071, p-val=0.7599
+Col 3 y - Pred 1: R²=0.0316, t-stat=1.6015, p-val=0.0550
+Col 3 y - Pred 2: R²=-0.0240, t-stat=-0.7389, p-val=0.7698
+Col 3 y - Simple: R²=0.0291, t-stat=1.1331, p-val=0.1291 | Linear: R²=-0.0892, t-stat=0.5535, p-val=0.2902 | NN: R²=-0.0715, t-stat=0.3596, p-val=0.3597
+Col 4 y - Pred 1: R²=0.0123, t-stat=1.3332, p-val=0.0916
+Col 4 y - Pred 2: R²=-0.0208, t-stat=-0.7226, p-val=0.7648
+Col 4 y - Simple: R²=0.0170, t-stat=0.9876, p-val=0.1621 | Linear: R²=-0.0866, t-stat=0.4398, p-val=0.3302 | NN: R²=-0.0683, t-stat=0.5104, p-val=0.3051
+Col 5 y - Pred 1: R²=0.0031, t-stat=1.1278, p-val=0.1300
+Col 5 y - Pred 2: R²=-0.0209, t-stat=-0.8376, p-val=0.7986
+Col 5 y - Simple: R²=0.0138, t-stat=0.9308, p-val=0.1764 | Linear: R²=-0.0748, t-stat=0.4782, p-val=0.3164 | NN: R²=-0.0611, t-stat=0.7131, p-val=0.2382
+Col 7 y - Pred 1: R²=-0.0335, t-stat=0.4047, p-val=0.3430
+Col 7 y - Pred 2: R²=-0.0221, t-stat=-1.0195, p-val=0.8457
+Col 7 y - Simple: R²=-0.0018, t-stat=0.5326, p-val=0.2974 | Linear: R²=-0.0892, t-stat=0.0866, p-val=0.4655 | NN: R²=-0.1210, t-stat=0.3065, p-val=0.3797
+Col 10 y - Pred 1: R²=-0.0352, t-stat=0.4200, p-val=0.3373
+Col 10 y - Pred 2: R²=-0.0327, t-stat=-1.6472, p-val=0.9498
+Col 10 y - Simple: R²=-0.0024, t-stat=0.5696, p-val=0.2847 | Linear: R²=-0.0506, t-stat=0.4935, p-val=0.3110 | NN: R²=-0.1075, t-stat=0.3976, p-val=0.3456
+
 
 Macro Difference
 EN + NN Macro Diff
