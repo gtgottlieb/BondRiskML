@@ -132,7 +132,7 @@ def NNExogGeneric(X, Y, no, dropout_u=None, l1l2penal=None, refit=None,
         model = Model(inputs=[layers['ins_main'], layers['ins_exog']], outputs=layers['output'])
 
         # Compile model
-        sgd_fine = SGD(lr=0.01, momentum=0.9, decay=0.01, nesterov=True)
+        sgd_fine = SGD(learning_rate=0.01, momentum=0.9, decay=0.01, nesterov=True)
         earlystopping = EarlyStopping(monitor='val_loss',min_delta=1e-6,
                                       patience=20,verbose=0, mode='auto')
         mcp = ModelCheckpoint(dumploc+'/BestModelWeights_'+str(no)+'.hdf5',
@@ -151,7 +151,7 @@ def NNExogGeneric(X, Y, no, dropout_u=None, l1l2penal=None, refit=None,
     else:
         # Retrieve model architecture and retrain
         model = load_model(dumploc+'/BestModel_'+str(no)+'.hdf5')
-        sgd_fine = SGD(lr=0.01, momentum=0.9, decay=0.01, nesterov=True)
+        sgd_fine = SGD(learning_rate=0.01, momentum=0.9, decay=0.01, nesterov=True)
         earlystopping = EarlyStopping(monitor='val_loss', min_delta=1e-6,
                                       patience=20, verbose=0, mode='auto')
         mcp = ModelCheckpoint(dumploc+'/BestModelWeights_'+str(no)+'.hdf5',
@@ -216,7 +216,7 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
     from keras.models import Model
     from keras.layers import Input, Dense, Dropout, BatchNormalization
     from keras.callbacks import EarlyStopping, ModelCheckpoint
-    from keras.layers.merge import concatenate
+    from keras.layers import concatenate
     from keras.optimizers import SGD
     from keras.models import load_model
     from keras import regularizers
@@ -226,14 +226,15 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
     Xexog = kwargs['Xexog']
 
     # Split Data for Test and Training
-    X_train = X[:-1,:]
-    Xexog_train = Xexog[:-1,:]
-    Y_train = Y[:-1,:]
-    X_test = X[-1,:].reshape(1,-1)
-    Xexog_test = Xexog[-1,:].reshape(1,-1)
+    X_train = X.iloc[:-1,:]
+    X_train = X.iloc[:-1,:]
+    Xexog_train = Xexog.iloc[:-1,:]
+    Y_train = Y.iloc[:-1,:]
+    X_test = X.iloc[-1,:].values.reshape(1,-1)
+    Xexog_test = Xexog.iloc[-1,:].values.reshape(1,-1)
+ 
 
-
-    #Scale the predictors for training
+    #Scale the predictorsfor training
     Xscaler_train = MinMaxScaler(feature_range=(-1,1))
     X_scaled_train = Xscaler_train.fit_transform(X_train)
     X_scaled_train = np.expand_dims(X_scaled_train, axis=1)
@@ -260,7 +261,7 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
 
 
     # Seed numpy and tf
-    tf.set_random_seed(no)
+    tf.random.set_seed(no)
     np.random.seed(no)
 
     # Define Model Architecture
@@ -294,10 +295,10 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
 
 
         # Compile model
-        sgd_fine = SGD(lr=0.015, momentum=0.9, decay=0.01, nesterov=True)
+        sgd_fine = SGD(learning_rate=0.015, momentum=0.9, decay=0.01, nesterov=True)
         earlystopping = EarlyStopping(monitor='val_loss', min_delta=1e-6,
                                       patience=20, verbose=0, mode='auto')
-        mcp = ModelCheckpoint(dumploc+'/BestModelWeights_'+str(no)+'.hdf5',
+        mcp = ModelCheckpoint(dumploc+'/BestModelWeights_'+str(no)+'.keras',
                               monitor='val_loss', save_best_only=True)
 
         model.compile(loss='mean_squared_error', optimizer=sgd_fine)
@@ -313,7 +314,7 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
 
     else:
         model = load_model(dumploc+'/BestModel_'+str(no)+'.hdf5')
-        sgd_fine = SGD(lr=0.015, momentum=0.9, decay=0.01, nesterov=True)
+        sgd_fine = SGD(learning_rate=0.015, momentum=0.9, decay=0.01, nesterov=True)
         earlystopping = EarlyStopping(monitor='val_loss', min_delta=1e-6,
                                       patience=20,verbose=0, mode='auto')
         mcp = ModelCheckpoint(dumploc+'/BestModelWeights_'+str(no)+'.hdf5',
@@ -321,7 +322,7 @@ def NNEnsemExogGeneric(X, Y, no,  dropout_u=None, l1l2penal=None, refit=None,
 
         model.compile(loss='mean_squared_error', optimizer=sgd_fine)
         history=model.fit(X_scaled_train_grouped+[Xexog_scaled_train], Y_train,
-                          epochs=500, callbacks=[earlystopping,mcp],
+                          epochs=50, callbacks=[earlystopping,mcp],
                           validation_split=0.15, batch_size=32, shuffle=True,
                           verbose=0)
 
@@ -433,4 +434,3 @@ def ElasticNet_NoMacro_Plain(Xexog, Y):
         Ypred[0,i]=model.predict(Xexog_test)
 
     return Ypred
-

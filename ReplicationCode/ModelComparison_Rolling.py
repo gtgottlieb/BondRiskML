@@ -127,18 +127,16 @@ if __name__ == "__main__":
             i += 1
 
     # Set of models for training
-    models = [NFB.ElasticNet_Exog_Plain, NFB.NN1LayerEnsemExog,
-              NFB.NN3LayerExog]
+    models = [NFB.NN1LayerEnsemExog]
     # Set of names to use for models. Same order as in list "models".
-    modelnames = ['ElasticNetExog_Plain', 'NN1LayerEnsemExog',
-                  'NN3LayerExog']
+    modelnames = ['NN1LayerEnsemExog']
 
     # =========================================================================
     #                          Data Loading
     # =========================================================================
 
     # Data Inputs: Replace with your data as needed. X / Y variables need to be pre-aligned for forecasting.
-
+    """
     # RHS variable: Forward Rates, TxN, N is number of forward rates
     Xexog = Xexog_placeholder
     # RHS variable: Macro variables, TxK, K is number of macro variables
@@ -147,6 +145,36 @@ if __name__ == "__main__":
     Y = Y_placeholder
     # Contains group number of macro variables, Kx1
     A = A_placeholder
+    """
+    # =========================
+    # Load and preprocess data
+    # =========================
+
+    # Load data
+    forward_rates = pd.read_excel("data-folder/Fwd rates and xr/forward_rates.xlsx", engine='openpyxl')
+    xr = pd.read_excel("data-folder/Fwd rates and xr/xr.xlsx", engine='openpyxl')
+    xr.iloc[:, 1:] = xr.iloc[:, 1:].shift(-12)
+    macro_df = pd.read_excel("data-folder/Cleaned data/Yields+Final/Imputted_MacroData.xlsx", engine='openpyxl')
+
+    # Clean macro data
+    macro_df = macro_df.drop(index=0)
+    macro_df = macro_df.rename(columns={'sasdate': 'Date'})
+    macro_df['Date'] = pd.to_datetime(macro_df['Date'])
+    macro_df = macro_df.interpolate(method='linear')
+
+    # Date range
+    start_date = '1971-09-01'
+    end_date = '2018-12-01'
+
+    # Filter by date
+    fwd_df = forward_rates[(forward_rates['Date'] >= start_date) & (forward_rates['Date'] <= end_date)]
+    xr_df = xr[(xr['Date'] >= start_date) & (xr['Date'] <= end_date)]
+    macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_date)]
+
+    # Convert to numpy arrays
+    X = macro_df.drop(columns='Date').values  # Macro vars
+    Xexog = fwd_df.drop(columns='Date').values  # Forward rates
+    Y = xr_df.drop(columns='Date').values  # Excess returns
 
 # =========================================================================
 #                   Estimation
@@ -155,11 +183,17 @@ if __name__ == "__main__":
 
 
     # Determine IS vs OS indices
+    # Determine IS vs OS indices
     T = X.shape[0]
-    tstart = np.argmax(fwdrate.index == OOS_Start)
-    OoS_indeces = range(tstart, int(T))
-    # Number of outputs
-    M = Y.shape[1]
+    dates = pd.to_datetime(xr['Date'])
+
+    # Find the index of the first date >= OOS_Start
+    OOS_Start_dt = pd.to_datetime(OOS_Start)
+    tstart = np.argmax(dates >= OOS_Start_dt)  # safer than np.where(...)[0]
+
+    OoS_indeces = range(tstart, T)
+    M = Y.shape[1]  # Number of outputs
+
 
     if TestFlag:
         OoS_indeces = OoS_indeces[:2]

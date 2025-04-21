@@ -230,7 +230,10 @@ def main(n_fwd_components: int, use_macro: bool, difference: bool = False):
 
     # Compute benchmark predictions.
     benchmark_preds = compute_benchmark_prediction(er_in, er_out)
+<<<<<<< HEAD
     benchmark_preds.to_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx", index=False)
+=======
+>>>>>>> Gabriel's-Branch
 
     # Report out-of-sample R2 for each column.
     preds_df = pd.DataFrame()
@@ -251,7 +254,12 @@ def main(n_fwd_components: int, use_macro: bool, difference: bool = False):
         plt.ylabel("Return Values")
         plt.legend()
         plt.grid(True)
+<<<<<<< HEAD
         plt.show()
+=======
+        #plt.show()
+        
+>>>>>>> Gabriel's-Branch
         
         # Compute model Roos
         # Save preds
@@ -264,6 +272,7 @@ def main(n_fwd_components: int, use_macro: bool, difference: bool = False):
         r2_bayes = r2_oos(er_out[col], bayes_preds, benchmark_preds[col])
         print(f"Out-of-sample R2 with Bayesian shrinkage for {col}: {r2_bayes}")
 
+<<<<<<< HEAD
     '''
     if use_macro:
         preds_df.to_excel("Extension code/Forecasting models/Saved preds/Regression preds/diff_Macro.xlsx", index=False)
@@ -282,6 +291,14 @@ if __name__ == "__main__":
 
 
 
+=======
+        
+    
+        
+if __name__ == "__main__":
+    # Directly call main with desired parameters.
+    main(n_fwd_components=3, use_macro=False)
+>>>>>>> Gabriel's-Branch
 
 
 

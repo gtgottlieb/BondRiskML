@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
+<<<<<<< HEAD
 from bayesian_shrinkage import bayesian_shrinkage
+=======
+>>>>>>> Gabriel's-Branch
 
 def compute_z_scores_dynamic(predictions):
     """
@@ -41,17 +44,29 @@ def compute_information_ratio(z_scores, excess_returns):
     """
     active_returns = z_scores * excess_returns  # Compute active strategy returns
     mean_return = np.mean(active_returns)
+<<<<<<< HEAD
     std_return = np.std(active_returns)  # Sample standard deviation
+=======
+    std_return = np.std(active_returns)
+>>>>>>> Gabriel's-Branch
     
     return mean_return / std_return if std_return != 0 else np.nan  # Avoid division by zero
 
 if __name__ == "__main__":
     # Load predictions and realized excess returns
+<<<<<<< HEAD
     realized = pd.read_excel("Extension code/Forecasting models/Saved preds/realized_xr.xlsx")
     bench = pd.read_excel("Extension code/Forecasting models/Saved preds/benchmark.xlsx")
     preds = pd.read_excel("Extension code/Forecasting models/Saved preds/Regression preds/diff_Macro.xlsx")
     bench = bench[preds.columns]
     #bayesian_preds = bayesian_shrinkage(bench, preds, prior_weight=0.5)
+=======
+    preds = pd.read_excel("data-folder/pca_bayes.xlsx").iloc[:, 1:]
+    realized = pd.read_excel("data-folder/realized_xr.xlsx").iloc[:, 1:]
+    
+    print(preds.head())
+    print(realized.head())
+>>>>>>> Gabriel's-Branch
 
 
     z_scores = pd.DataFrame()
