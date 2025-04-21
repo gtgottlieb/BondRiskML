@@ -21,10 +21,6 @@ from tensorflow.keras.regularizers import l1_l2
 from keras.optimizers import SGD
 
 # Custom libraries
-<<<<<<< HEAD
-import Data_preprocessing as data_prep
-=======
->>>>>>> Gabriel's-Branch
 import HAC_CW_adj_R2_signif_test
 from Roos import r2_oos
 
@@ -32,15 +28,10 @@ from Roos import r2_oos
 tf.random.set_seed(777)
 np.random.seed(777)
 
-<<<<<<< HEAD
-## Model setup : taking first differences and/or PCA as input (instead of fwd rates directly), re-estimation frequency
-
-=======
 # Global boolean to control whether to check for existing models in dumploc
 resume = True
 
 ## Model setup : taking first differences and/or PCA as input (instead of fwd rates directly), re-estimation frequency
->>>>>>> Gabriel's-Branch
 differencing = False
 pca_as_input = True
 re_estimation_freq = 1 # In months
@@ -50,24 +41,6 @@ epochs = 50
 ## Import + prep the data
 
 # Import yield and macro data
-<<<<<<< HEAD
-yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
-forward_rates, xr = data_prep.process_yield_data(yields_df)
-fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
-
-macro_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Imputted_MacroData.xlsx')
-
-# Set sample period
-start_date = '1971-08-01' 
-if extended_sample_period:
-    end_date = '2023-12-01' # Most recent
-else:
-    end_date = '2018-12-01' # As in Bianchi
-
-fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
-xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
-macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_date)]
-=======
 forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
 xr = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
@@ -93,23 +66,15 @@ macro_df.dropna(inplace=True)
 fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date) ]
 xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
 macro_df = macro_df[(macro_df['Date'] >= start_date) & (macro_df['Date'] <= end_date) ]
->>>>>>> Gabriel's-Branch
 
 oos_start_date = '1990-01-01'
 reestimation_start_date = '1991-01-01'
 reestimation_start_index = fwd_df[fwd_df['Date'] == reestimation_start_date].index[0]
 
-<<<<<<< HEAD
-if differencing:
-    fwd_df = fwd_df.diff(12)
-    xr_df = xr_df.shift(-12)  # Shift Y to match the X diff at t
-    macro_df = macro_df.shift(-12)  # Shift macro data to match the X diff at t
-=======
 
 
 if differencing:
     fwd_df = fwd_df.diff(12)
->>>>>>> Gabriel's-Branch
 
     # Drop NaNs across all datasets by merging and dropping rows with any missing values
     combined = pd.concat([fwd_df, xr_df, macro_df], axis=1)
@@ -167,11 +132,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     model = Model(inputs=[m_input, f_input], outputs=output_layer)
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
 
-<<<<<<< HEAD
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN3_32_16_8'
-=======
     dumploc = 'data-folder/dumploc_NN3_32_16_8_new'  # Use a relative path in the current working directory
->>>>>>> Gabriel's-Branch
     mcp = ModelCheckpoint(dumploc + f'/BestModel_{model_no}.keras', monitor='val_loss', save_best_only=False)
     early_stopping = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
 
@@ -185,11 +146,7 @@ def train_NN(X_f_train, X_m_train, Y_train, model_no, l1l2, dropout_rate, n_epoc
     return val_loss
 
 def forecast_NN(X_f_test, X_m_test, model_no):
-<<<<<<< HEAD
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN3_32_16_8'
-=======
     dumploc = 'data-folder/dumploc_NN3_32_16_8_new'  # Use a relative path in the current working directory
->>>>>>> Gabriel's-Branch
     model = load_model(dumploc + f'/BestModel_{model_no}.keras')
     
     X_f_test = X_f_test.reshape(1, -1)
@@ -212,12 +169,6 @@ oos_iteration_dates = pd.date_range(start=oos_start_date,
                                      end=end_date, 
                                      freq=f'{re_estimation_freq}MS').normalize()
 
-<<<<<<< HEAD
-restimation_iteration_dates = []
-
-# Set up loop, counters + storage for grid search
-total_iterations = len(ParameterGrid(param_grid)) * (len(oos_iteration_dates))
-=======
 # --- New code for resume functionality ---
 import os
 if resume:
@@ -227,29 +178,19 @@ else:
     pending_dates = list(oos_iteration_dates)
 
 total_iterations = len(ParameterGrid(param_grid)) * (len(pending_dates))
->>>>>>> Gabriel's-Branch
 iteration_count = 0
 start_time = time.time()
 
 all_Y_pred = []
-<<<<<<< HEAD
-
-for t in oos_iteration_dates:
-=======
 restimation_iteration_dates = []
 
 for t in pending_dates:
     # No need to check again inside the loop since pending_dates already excludes them
->>>>>>> Gabriel's-Branch
     best_val_loss = float('inf')
     best_params = None
     best_Y_pred = None
 
     for params in ParameterGrid(param_grid):
-<<<<<<< HEAD
-        
-=======
->>>>>>> Gabriel's-Branch
         iteration_count += 1
         print(f"Running iteration {iteration_count}/{total_iterations} | Testing params: {params}") 
 
@@ -267,21 +208,12 @@ for t in pending_dates:
             best_val_loss = val_loss
             best_params = params
             best_Y_pred = Y_pred
-<<<<<<< HEAD
-    
-    if best_Y_pred is not None and t >= pd.to_datetime(reestimation_start_date):
-        all_Y_pred.append(best_Y_pred)
-        restimation_iteration_dates.append(t)
-    
-all_Y_pred = np.vstack(all_Y_pred) 
-=======
 
     if best_Y_pred is not None and t >= pd.to_datetime(reestimation_start_date):
         all_Y_pred.append(best_Y_pred)
         restimation_iteration_dates.append(t)
 
 all_Y_pred = np.vstack(all_Y_pred)  # All new forecasts are aggregated here
->>>>>>> Gabriel's-Branch
 
 ## Analyze model performance
 Y_test = Y[Y_index.isin(restimation_iteration_dates)]
@@ -345,11 +277,6 @@ mins, secs = divmod(total_runtime, 60)
 print(f"\n Total runtime: {int(mins)} min {secs:.0f} sec")
 
 # Save forecasts to excel file
-<<<<<<< HEAD
-Y_oos_df = pd.DataFrame(all_Y_pred, index=restimation_iteration_dates, columns=maturity_names)
-Y_oos_df.to_excel('/Users/avril/Desktop/Seminar/Python Code/Predictions/NN3_32_16_8_Predictions.xlsx')
-=======
 # NOTE: This Excel file (NN3_32_16_8_Predictions.xlsx) will only contain forecasts produced in the current run.
 Y_oos_df = pd.DataFrame(all_Y_pred, index=restimation_iteration_dates, columns=maturity_names)
 Y_oos_df.to_excel('data-folder/NN3_32_16_8_Predictions.xlsx')
->>>>>>> Gabriel's-Branch

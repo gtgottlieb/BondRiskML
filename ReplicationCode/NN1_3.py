@@ -22,10 +22,6 @@ from tensorflow.keras.regularizers import l1_l2
 from keras.optimizers import SGD
 
 # Custom libraries
-<<<<<<< HEAD
-import Data_preprocessing as data_prep
-=======
->>>>>>> Gabriel's-Branch
 import HAC_CW_adj_R2_signif_test
 from Roos import r2_oos
 
@@ -45,13 +41,8 @@ epochs = 10
 ## Import + prep the data
 
 # Import yield data, set in dataframe format.
-<<<<<<< HEAD
-yields_df = pd.read_excel('/Users/avril/Desktop/Seminar/Data/Aligned_Yields_Extracted.xlsx')
-forward_rates, xr = data_prep.process_yield_data(yields_df)
-=======
 xr = pd.read_excel("data-folder/!Data for forecasting/xr.xlsx")
 forward_rates = pd.read_excel("data-folder/!Data for forecasting/forward_rates.xlsx")
->>>>>>> Gabriel's-Branch
 fwd_df, xr_df = pd.DataFrame(forward_rates), pd.DataFrame(xr)
 
 # Set sample period
@@ -61,17 +52,12 @@ if extended_sample_period:
 else:
     end_date = '2018-12-01' # As in Bianchi
 
-<<<<<<< HEAD
-fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
-xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
-=======
 #fwd_df = fwd_df[(fwd_df['Date'] >= start_date) & (fwd_df['Date'] <= end_date)]
 #xr_df = xr_df[(xr_df['Date'] >= start_date) & (xr_df['Date'] <= end_date)]
 
 # Filter excess returns to only include specific maturities
 selected_maturities = ["2 y", "3 y", "4 y", "5 y", "7 y", "10 y"]
 xr_df = xr_df[selected_maturities]
->>>>>>> Gabriel's-Branch
 
 oos_start_date = '1990-01-01'
 reestimation_start_date = '1991-01-01'
@@ -117,11 +103,7 @@ def train_NN(X_train, Y_train, model_no, l1l2, dropout_rate, n_epochs=epochs):
     model = Model(inputs=input_layer, outputs=output_layer)
     sgd_optimizer = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
     
-<<<<<<< HEAD
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN1_3'
-=======
     dumploc = '/Users/gtgot/Desktop/dumploc_NN1_3'
->>>>>>> Gabriel's-Branch
     mcp = ModelCheckpoint(dumploc + f'/BestModel_{model_no}.keras', monitor='val_loss', save_best_only=False)
 
     model.compile(optimizer=sgd_optimizer, loss='mse')
@@ -134,11 +116,7 @@ def train_NN(X_train, Y_train, model_no, l1l2, dropout_rate, n_epochs=epochs):
 
 
 def forecast_NN(X_test, model_no):
-<<<<<<< HEAD
-    dumploc = '/Users/avril/Desktop/Seminar/Python Code/dumploc_NN1_3'
-=======
     dumploc = '/Users/gtgot/Desktop/dumploc_NN1_3'
->>>>>>> Gabriel's-Branch
     model = load_model(dumploc + f'/BestModel_{model_no}.keras')
     X_test = X_test.reshape(1, -1)
     Y_pred = model.predict(X_test)
@@ -219,19 +197,11 @@ def compute_benchmark_prediction(xr_insample, xr_oos):
     # Convert list of Series (one per iteration) to a single DataFrame
     return pd.DataFrame(benchmark_preds, index=np.arange(len(xr_oos)))
 
-<<<<<<< HEAD
-if first_differences and pca_as_input:
-    print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences + PCA) ===")
-elif first_differences:
-    print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences) ===")
-elif pca_as_input:
-=======
 #if first_differences and pca_as_input:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences + PCA) ===")
 #elif first_differences:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (First Differences) ===")
 if pca_as_input:
->>>>>>> Gabriel's-Branch
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance (PCA) ===")
 else:
     print("\n=== Neural Network (1 layer, 3 neurons) OOS Performance ===")
@@ -270,8 +240,4 @@ print(f"\n Total runtime: {int(mins)} min {secs:.0f} sec")
 
 # Save forecasts to excel file
 Y_oos_df = pd.DataFrame(all_Y_pred, index=restimation_iteration_dates, columns=maturity_names)
-<<<<<<< HEAD
-Y_oos_df.to_excel('/Users/avril/Desktop/Seminar/Python Code/Predictions/NN1_3_Predictions.xlsx')
-=======
 Y_oos_df.to_excel('/Users/gtgott/Desktop/NN1_3_Predictions.xlsx')
->>>>>>> Gabriel's-Branch
